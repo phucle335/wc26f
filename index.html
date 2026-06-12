@@ -1241,7 +1241,7 @@
 
     .lineup-pitch-field {
       position: relative;
-      height: 28rem;
+      height: 34rem;
       background:
         linear-gradient(180deg, rgba(24, 96, 64, 0.55) 0 49.5%, rgba(255, 255, 255, 0.08) 49.5% 50.5%, rgba(16, 72, 48, 0.72) 50.5% 100%),
         repeating-linear-gradient(
@@ -1275,29 +1275,32 @@
     .lineup-player-dot {
       position: absolute;
       z-index: 2;
-      display: grid;
-      justify-items: center;
-      gap: 0.12rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.18rem;
       width: max-content;
-      max-width: 5.2rem;
+      max-width: 4.8rem;
       transform: translate(-50%, -50%);
       text-align: center;
     }
 
     .lineup-player-dot.is-home {
       z-index: 3;
+      flex-direction: column;
     }
 
     .lineup-player-dot.is-away {
       z-index: 4;
+      flex-direction: column-reverse;
     }
 
     .lineup-player-photo {
       position: relative;
-      width: 1.7rem;
-      height: 1.7rem;
+      width: 1.85rem;
+      height: 1.85rem;
       border-radius: 50%;
-      border: 0.1rem solid rgba(255, 255, 255, 0.55);
+      border: 0.12rem solid rgba(255, 255, 255, 0.55);
       background: rgba(255, 255, 255, 0.12);
       overflow: hidden;
       box-shadow: 0 0.12rem 0.35rem rgba(0, 0, 0, 0.35);
@@ -1333,9 +1336,36 @@
       place-items: center;
       width: 100%;
       height: 100%;
-      color: #ffffff;
-      font-size: 0.58rem;
+      font-size: 0.62rem;
       font-weight: 900;
+      line-height: 1;
+    }
+
+    .lineup-player-label {
+      display: block;
+      width: 100%;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      font-size: 0.48rem;
+      font-weight: 800;
+      line-height: 1.15;
+      word-break: break-word;
+      overflow: visible;
+      white-space: normal;
+      color: #ffffff;
+      text-shadow:
+        0 0.08rem 0.18rem rgba(0, 0, 0, 0.9),
+        0 0 0.35rem rgba(0, 0, 0, 0.65);
+    }
+
+    .lineup-player-name {
+      display: block;
+      overflow: visible;
+      white-space: normal;
+      word-break: break-word;
+      color: #ffffff;
     }
 
     .lineup-player-icons {
@@ -1370,47 +1400,6 @@
     .lineup-sub-out {
       background: #ff6b7a;
       color: #ffffff;
-    }
-
-    .lineup-player-label {
-      display: grid;
-      gap: 0.04rem;
-      width: 100%;
-      padding: 0.14rem 0.28rem;
-      border-radius: 0.22rem;
-      font-size: 0.5rem;
-      font-weight: 800;
-      line-height: 1.2;
-      word-break: break-word;
-      overflow: visible;
-      white-space: normal;
-    }
-
-    .lineup-player-num {
-      font-size: 0.46rem;
-      font-weight: 900;
-      line-height: 1;
-    }
-
-    .lineup-player-name {
-      display: block;
-      overflow: visible;
-      white-space: normal;
-      word-break: break-word;
-    }
-
-    .lineup-player-dot.is-home .lineup-player-label {
-      background: var(--home-kit-bg);
-      color: var(--home-kit-text);
-      border: 0.06rem solid var(--home-kit-border);
-      box-shadow: 0 0.1rem 0.28rem rgba(0, 0, 0, 0.35);
-    }
-
-    .lineup-player-dot.is-away .lineup-player-label {
-      background: var(--away-kit-bg);
-      color: var(--away-kit-text);
-      border: 0.06rem solid var(--away-kit-border);
-      box-shadow: 0 0.1rem 0.28rem rgba(0, 0, 0, 0.45);
     }
 
     .lineup-bench-head {
@@ -2423,7 +2412,7 @@
       }
 
       const opponentHomeKit = team(opponentName).kit.home || defaultTeamKit.home;
-      if (kitColorDistance(homeKit.bg, opponentHomeKit.bg) < 95) {
+      if (kitColorDistance(homeKit.bg, opponentHomeKit.bg) < 110) {
         return awayKit;
       }
 
@@ -2434,8 +2423,17 @@
       const homeKit = resolveTeamKit(homeTeam, awayTeam, true);
       let awayKit = resolveTeamKit(awayTeam, homeTeam, false);
 
-      if (kitColorDistance(homeKit.bg, awayKit.bg) < 95) {
+      if (kitColorDistance(homeKit.bg, awayKit.bg) < 110) {
         awayKit = team(awayTeam).kit.away || defaultTeamKit.away;
+      }
+
+      if (kitColorDistance(homeKit.bg, awayKit.bg) < 110) {
+        awayKit = {
+          ...awayKit,
+          bg: awayKit.border !== homeKit.bg ? awayKit.border : defaultTeamKit.away.bg,
+          text: awayKit.text,
+          border: awayKit.border
+        };
       }
 
       return [
@@ -3204,13 +3202,26 @@
       return rows.length ? rows : [4, 4, 2];
     }
 
+    function getFormationRowY(rowIdx, rowCount, isHome) {
+      const homeRows = {
+        1: [30],
+        2: [18, 34],
+        3: [14, 26, 38],
+        4: [12, 21, 30, 39],
+        5: [11, 18, 25, 32, 39]
+      };
+      const rows = homeRows[rowCount] || homeRows[4];
+      const yHome = rows[Math.min(rowIdx, rows.length - 1)] || 30;
+      return isHome ? yHome : 100 - yHome;
+    }
+
     function getFormationCoords(formationPlace, formation, isHome) {
       if (!formationPlace) {
-        return { x: 50, y: isHome ? 28 : 72 };
+        return { x: 50, y: isHome ? 28 : 72, rowIdx: 0 };
       }
 
       if (formationPlace === 1) {
-        return { x: 50, y: isHome ? 7 : 93 };
+        return { x: 50, y: isHome ? 5 : 95, rowIdx: -1 };
       }
 
       const rows = formationRows(formation);
@@ -3229,15 +3240,12 @@
       }
 
       const countInRow = rows[rowIdx] || 1;
-      const x = ((colIdx + 1) / (countInRow + 1)) * 100;
-      const rowCount = rows.length;
-      const yMin = 16;
-      const yMax = 40;
-      const yHome = rowCount <= 1
-        ? yMax
-        : yMin + (rowIdx / (rowCount - 1)) * (yMax - yMin);
+      const edge = countInRow >= 4 ? 8 : countInRow === 3 ? 12 : 18;
+      const span = 100 - edge * 2;
+      const x = edge + ((colIdx + 1) / (countInRow + 1)) * span;
+      const y = getFormationRowY(rowIdx, rows.length, isHome);
 
-      return { x, y: isHome ? yHome : 100 - yHome };
+      return { x, y, rowIdx };
     }
 
     function parseRosterPlayer(player) {
@@ -3305,20 +3313,9 @@
       return positionName || "Cầu thủ";
     }
 
-    function lineupPhotoContent(player) {
-      if (player.photo) {
-        return `<img src="${player.photo}" alt="" loading="lazy">`;
-      }
-
-      const initials = String(player.name || "?")
-        .split(/[\s.]+/)
-        .filter(Boolean)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase();
-
-      return `<div class="lineup-player-photo-fallback">${initials || "?"}</div>`;
+    function lineupJerseyContent(player) {
+      const number = player.jersey || "?";
+      return `<div class="lineup-player-photo-fallback">${number}</div>`;
     }
 
     function buildPlayerEventsMap(events) {
@@ -3627,11 +3624,10 @@
       return `
         <div class="lineup-player-dot ${sideClass}" style="left:${coords.x}%;top:${coords.y}%;">
           <div class="lineup-player-photo">
-            ${lineupPhotoContent(player)}
+            ${lineupJerseyContent(player)}
             ${icons.length ? `<div class="lineup-player-icons">${icons.join("")}</div>` : ""}
           </div>
           <div class="lineup-player-label">
-            <span class="lineup-player-num">${player.jersey}</span>
             <span class="lineup-player-name">${player.name}</span>
           </div>
         </div>
@@ -3662,7 +3658,7 @@
 
       return `
         <div class="lineup-bench-row">
-          <div class="lineup-bench-photo">${lineupPhotoContent(player)}</div>
+          <div class="lineup-bench-photo">${lineupJerseyContent(player)}</div>
           <div class="lineup-bench-main">
             <div class="lineup-bench-name">${player.jersey ? `<span style="opacity:0.72">${player.jersey}</span> ` : ""}${player.name}</div>
             <div class="lineup-bench-pos">${positionLabelVi(player.position, player.positionAbbr)}</div>
