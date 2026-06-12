@@ -760,6 +760,64 @@
       scrollbar-color: rgba(255, 209, 102, 0.9) rgba(255, 255, 255, 0.10);
     }
 
+    .key-events-section {
+      margin-bottom: 0.65rem;
+    }
+
+    .key-events-head {
+      margin-bottom: 0.45rem;
+      font-size: 0.66rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .key-events-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+    }
+
+    .key-events-team {
+      margin-bottom: 0.32rem;
+      font-size: 0.68rem;
+      font-weight: 900;
+      color: #e8f0fb;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .key-events-list {
+      display: grid;
+      gap: 0.22rem;
+    }
+
+    .key-events-line {
+      font-size: 0.68rem;
+      font-weight: 700;
+      line-height: 1.35;
+      color: #dce8f8;
+    }
+
+    .key-events-line.goal {
+      color: var(--gold);
+    }
+
+    .key-events-line.yellow {
+      color: #ffd166;
+    }
+
+    .key-events-line.red {
+      color: #ff6b7a;
+    }
+
+    .key-events-empty {
+      font-size: 0.66rem;
+      color: #8fa3bc;
+    }
+
     .timeline-item {
       display: grid;
       grid-template-columns: 3.2rem minmax(0, 1fr);
@@ -1516,7 +1574,7 @@
           </div>
 
           <div class="live-timeline hidden" id="liveTimeline">
-            <div class="live-timeline-head">Diễn biến trận đấu</div>
+            <div class="live-timeline-head">Bàn thắng & thẻ</div>
             <div class="live-timeline-list" id="liveTimelineList"></div>
           </div>
         </div>
@@ -2203,20 +2261,47 @@
       return labels[kind] || "Sự kiện";
     }
 
+    function extractPlayerFromText(text) {
+      const body = String(text || "").trim();
+      if (!body) {
+        return "";
+      }
+
+      const parenMatch = body.match(/^([^(]+?)\s*\(/);
+      if (parenMatch) {
+        return parenMatch[1].trim();
+      }
+
+      const afterScore = body.includes(". ") ? body.split(". ").slice(1).join(". ") : body;
+      const goalMatch = afterScore.match(/^([^(]+?)\s*\(/);
+      if (goalMatch) {
+        return goalMatch[1].trim();
+      }
+
+      return "";
+    }
+
+    function normalizeEventTeam(name) {
+      return canonicalName(liveNameAliases[name] || name || "");
+    }
+
     function parseTimelineFromSummary(data) {
       const events = [];
-      const pushEvent = (minute, typeText, text) => {
+      const pushEvent = (minute, typeText, text, meta = {}) => {
         const body = String(text || typeText || "").trim();
         if (!body) {
           return;
         }
 
         const kind = timelineEventTypeLabel(typeText, body);
+        const player = meta.player || extractPlayerFromText(body);
         events.push({
           minute: minute || "—",
           kind,
           label: timelineTypeVi(kind),
-          text: body
+          text: body,
+          player,
+          teamName: meta.teamName || ""
         });
       };
 
@@ -2225,7 +2310,13 @@
         const minute = item.clock?.displayValue || item.clock?.value || item.period?.displayValue || "";
         const typeText = item.type?.text || item.type?.description || "";
         const text = item.text || item.shortText || item.description || "";
-        pushEvent(minute, typeText, text);
+        const player = item.participants?.[0]?.athlete?.displayName
+          || item.participants?.[0]?.athlete?.shortName
+          || "";
+        pushEvent(minute, typeText, text, {
+          player,
+          teamName: item.team?.displayName || ""
+        });
       });
 
       if (events.length === 0 && Array.isArray(data.commentary)) {
@@ -2427,56 +2518,97 @@
       }).join("");
     }
 
+    function getKeyEvents(events) {
+      return (events || []).filter((item) => item.kind === "goal" || item.kind === "yellow" || item.kind === "red");
+    }
+
+    function formatKeyEventLine(item) {
+      const player = item.player || extractPlayerFromText(item.text) || "—";
+      const minute = item.minute || "—";
+
+      if (item.kind === "goal") {
+        return `${minute} ${player} ghi bàn`;
+      }
+
+      if (item.kind === "yellow") {
+        return `${minute} ${player} thẻ vàng`;
+      }
+
+      if (item.kind === "red") {
+        return `${minute} ${player} thẻ đỏ`;
+      }
+
+      return "";
+    }
+
+    function renderKeyEventsPanel(events, match) {
+      const keyEvents = getKeyEvents(events);
+
+      if (!keyEvents.length) {
+        return '<div class="timeline-empty">Chưa có bàn thắng hoặc thẻ.</div>';
+      }
+
+      const homeName = normalizeEventTeam(match.home);
+      const awayName = normalizeEventTeam(match.away);
+      const homeEvents = keyEvents.filter((item) => normalizeEventTeam(item.teamName) === homeName);
+      const awayEvents = keyEvents.filter((item) => normalizeEventTeam(item.teamName) === awayName);
+      const unknownEvents = keyEvents.filter((item) => {
+        const team = normalizeEventTeam(item.teamName);
+        return team && team !== homeName && team !== awayName;
+      });
+
+      const renderLines = (items) => {
+        if (!items.length) {
+          return '<div class="key-events-empty">—</div>';
+        }
+
+        return items.map((item) => {
+          return `<div class="key-events-line ${item.kind}">${formatKeyEventLine(item)}</div>`;
+        }).join("");
+      };
+
+      const unknownBlock = unknownEvents.length
+        ? `<div class="key-events-list">${renderLines(unknownEvents)}</div>`
+        : "";
+
+      return `
+        <div class="key-events-section">
+          <div class="key-events-head">Bàn thắng & thẻ</div>
+          <div class="key-events-grid">
+            <div>
+              <div class="key-events-team">${match.home}</div>
+              <div class="key-events-list">${renderLines(homeEvents)}</div>
+            </div>
+            <div>
+              <div class="key-events-team">${match.away}</div>
+              <div class="key-events-list">${renderLines(awayEvents)}</div>
+            </div>
+          </div>
+          ${unknownBlock}
+        </div>
+      `;
+    }
+
     async function loadMatchTimelineForLive(match) {
       if (!match?.inProgress || !liveTimelineListEl) {
         return;
       }
 
       const summary = await fetchMatchSummary(match.espnId);
-      renderTimelineList(liveTimelineListEl, summary?.events || []);
+      if (liveTimelineListEl) {
+        liveTimelineListEl.innerHTML = renderKeyEventsPanel(summary?.events || [], match);
+      }
     }
 
-    function briefTimelineText(item) {
-      const body = String(item.text || item.label || "").trim();
-      if (!body) {
-        return "";
-      }
-
-      if (item.kind === "goal") {
-        const afterScore = body.includes(". ") ? body.split(". ").slice(1).join(". ") : body;
-        const playerMatch = afterScore.match(/^([^(]+?)\s*\(/);
-        if (playerMatch) {
-          return `${playerMatch[1].trim()} ghi bàn`;
-        }
-      }
-
-      if (item.kind === "yellow" || item.kind === "red") {
-        const playerMatch = body.match(/^([^(]+?)\s*\(/);
-        if (playerMatch) {
-          return item.kind === "yellow"
-            ? `${playerMatch[1].trim()} nhận thẻ vàng`
-            : `${playerMatch[1].trim()} nhận thẻ đỏ`;
-        }
-      }
-
-      if (item.kind === "other" && /kick\s*off/i.test(body)) {
-        return "Bắt đầu trận đấu";
-      }
-
-      if (body.length > 84) {
-        return `${body.slice(0, 81)}...`;
-      }
-
-      return body;
-    }
-
-    function renderStatsPanel(stats, match) {
-      if (!stats?.rows?.length) {
-        return '<div class="timeline-empty">Chưa có thống kê trận đấu.</div>';
-      }
-
+    function renderStatsPanel(stats, match, events) {
+      const keyEventsHtml = renderKeyEventsPanel(events || [], match);
       const homeShort = team(match.home).short;
       const awayShort = team(match.away).short;
+
+      if (!stats?.rows?.length) {
+        return keyEventsHtml;
+      }
+
       const rows = stats.rows.map((row) => {
         return `
           <div class="detail-stat-row">
@@ -2488,31 +2620,14 @@
       }).join("");
 
       return `
+        ${keyEventsHtml}
         <div class="detail-stats-head">Thống kê đội · ${homeShort} – ${awayShort}</div>
         <div class="detail-stats-table">${rows}</div>
       `;
     }
 
-    function renderTimelineBriefPanel(events) {
-      if (!events.length) {
-        return '<div class="timeline-empty">Chưa có diễn biến chi tiết.</div>';
-      }
-
-      const rows = events.map((item) => {
-        const text = briefTimelineText(item);
-        if (!text) {
-          return "";
-        }
-
-        return `
-          <div class="detail-timeline-row">
-            <div class="detail-timeline-min">${item.minute || "—"}</div>
-            <div class="detail-timeline-text">${text}</div>
-          </div>
-        `;
-      }).filter(Boolean).join("");
-
-      return `<div class="detail-timeline-brief">${rows}</div>`;
+    function renderTimelineBriefPanel(events, match) {
+      return renderKeyEventsPanel(events, match);
     }
 
     function renderLineupsPanel(lineups, match) {
@@ -2577,7 +2692,7 @@
       }
 
       if (tab === "timeline") {
-        panel.innerHTML = renderTimelineBriefPanel(summary.events);
+        panel.innerHTML = renderTimelineBriefPanel(summary.events, match);
         return;
       }
 
@@ -2586,7 +2701,7 @@
         return;
       }
 
-      panel.innerHTML = renderStatsPanel(summary.stats, match);
+      panel.innerHTML = renderStatsPanel(summary.stats, match, summary.events);
     }
 
     function renderGroupHistory(groupName) {
