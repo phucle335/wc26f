@@ -1,0 +1,26 @@
+{
+	"contentrating" : "Everyone",
+	"description" : "Wallpaper World Cup 2026 trực tiếp: bảng xếp hạng, 5 trận tiếp theo, cờ đội và cập nhật tỷ số ESPN. Giờ Việt Nam (UTC+7).",
+	"file" : "index.html",
+	"general" : 
+	{
+		"properties" : 
+		{
+			"schemecolor" : 
+			{
+				"order" : 0,
+				"text" : "ui_browse_properties_scheme_color",
+				"type" : "color",
+				"value" : "0 0 0"
+			}
+		}
+	},
+	"preview" : "preview.jpg",
+	"ratingsex" : "none",
+	"ratingviolence" : "none",
+	"tags" : [ "Sports" ],
+	"title" : "World Cup 2026 Live (Tiếng Việt)",
+	"type" : "web",
+	"version" : 0,
+	"visibility" : "public"
+}
