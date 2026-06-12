@@ -2876,7 +2876,7 @@
       const liveTeams = new Set();
 
       mergeLiveSchedule().forEach((match) => {
-        if (match.inProgress && match.homeScore !== null) {
+        if ((match.inProgress || match.rawInProgress) && getStandingsScores(match)) {
           liveTeams.add(match.home);
           liveTeams.add(match.away);
         }
@@ -2889,7 +2889,7 @@
       const teams = new Set();
 
       mergeLiveSchedule().forEach((match) => {
-        if (match.isProvisional && match.homeScore !== null) {
+        if ((match.isProvisional || match.rawInProgress) && getStandingsScores(match)) {
           teams.add(match.home);
           teams.add(match.away);
         }
@@ -2906,6 +2906,8 @@
             matchKey(match.home, match.away, match.utc),
             match.homeScore,
             match.awayScore,
+            match.rawHomeScore,
+            match.rawAwayScore,
             match.inProgress ? 1 : 0,
             match.rawInProgress ? 1 : 0,
             match.isProvisional ? 1 : 0,
@@ -3812,6 +3814,18 @@
       renderDetailTabPanel(summary, match, tab);
     }
 
+    function getStandingsScores(match) {
+      if (match.homeScore !== null && match.awayScore !== null) {
+        return { home: match.homeScore, away: match.awayScore };
+      }
+
+      if (match.rawInProgress && match.rawHomeScore !== null && match.rawAwayScore !== null) {
+        return { home: match.rawHomeScore, away: match.rawAwayScore };
+      }
+
+      return null;
+    }
+
     function buildStandings() {
       const table = {};
 
@@ -3833,7 +3847,8 @@
       });
 
       mergeLiveSchedule().forEach((match) => {
-        if (match.homeScore === null || match.awayScore === null) {
+        const scores = getStandingsScores(match);
+        if (!scores) {
           return;
         }
 
@@ -3844,22 +3859,25 @@
 
         const home = groupTable[match.home];
         const away = groupTable[match.away];
-        const isFinal = match.completed && !match.isProvisional;
-        const isLive = match.isProvisional;
+        const homeScore = scores.home;
+        const awayScore = scores.away;
+        const isLive = match.isProvisional || match.rawInProgress;
+        const isFinal = (match.completed || match.rawCompleted) && !match.rawInProgress
+          && match.homeScore !== null && match.awayScore !== null;
 
         if (isFinal) {
           home.played += 1;
           away.played += 1;
-          home.gf += match.homeScore;
-          home.ga += match.awayScore;
-          away.gf += match.awayScore;
-          away.ga += match.homeScore;
+          home.gf += homeScore;
+          home.ga += awayScore;
+          away.gf += awayScore;
+          away.ga += homeScore;
 
-          if (match.homeScore > match.awayScore) {
+          if (homeScore > awayScore) {
             home.wins += 1;
             away.losses += 1;
             home.points += 3;
-          } else if (match.homeScore < match.awayScore) {
+          } else if (homeScore < awayScore) {
             away.wins += 1;
             home.losses += 1;
             away.points += 3;
@@ -3870,14 +3888,14 @@
             away.points += 1;
           }
         } else if (isLive) {
-          home.gf += match.homeScore;
-          home.ga += match.awayScore;
-          away.gf += match.awayScore;
-          away.ga += match.homeScore;
+          home.gf += homeScore;
+          home.ga += awayScore;
+          away.gf += awayScore;
+          away.ga += homeScore;
 
-          if (match.homeScore > match.awayScore) {
+          if (homeScore > awayScore) {
             home.points += 3;
-          } else if (match.homeScore < match.awayScore) {
+          } else if (homeScore < awayScore) {
             away.points += 3;
           } else {
             home.points += 1;
