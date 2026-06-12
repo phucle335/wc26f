@@ -1823,12 +1823,15 @@
       const rawInProgress = match.inProgress;
       const rawCompleted = match.completed;
 
+      const withRaw = (patch) => ({
+        ...match,
+        rawInProgress,
+        rawCompleted,
+        ...patch
+      });
+
       if ((!rawInProgress && !rawCompleted) || !hasScore) {
-        return {
-          ...match,
-          rawInProgress,
-          isProvisional: false
-        };
+        return withRaw({ isProvisional: false });
       }
 
       let state = scoreDelayState.get(key);
@@ -1838,9 +1841,30 @@
           shownAway: null,
           targetHome: null,
           targetAway: null,
-          targetSince: 0
+          targetSince: 0,
+          wasLive: false
         };
         scoreDelayState.set(key, state);
+      }
+
+      if (rawInProgress) {
+        state.wasLive = true;
+      }
+
+      // Trận đã kết thúc trước phiên hiện tại → hiện ngay (lịch sử / bảng điểm)
+      if (rawCompleted && !rawInProgress && !state.wasLive) {
+        state.shownHome = rawHome;
+        state.shownAway = rawAway;
+        state.targetHome = rawHome;
+        state.targetAway = rawAway;
+        return withRaw({
+          homeScore: rawHome,
+          awayScore: rawAway,
+          completed: true,
+          inProgress: false,
+          statusState: "post",
+          isProvisional: false
+        });
       }
 
       const now = Date.now();
@@ -1864,30 +1888,26 @@
       }
 
       if (state.shownHome === null || state.shownAway === null) {
-        return {
-          ...match,
+        return withRaw({
           homeScore: null,
           awayScore: null,
-          completed: false,
+          completed: rawCompleted,
           inProgress: false,
-          statusState: rawInProgress ? "in" : "pre",
-          rawInProgress,
+          statusState: rawInProgress ? "in" : rawCompleted ? "post" : "pre",
           isProvisional: false
-        };
+        });
       }
 
       const isProvisional = rawInProgress;
 
-      return {
-        ...match,
+      return withRaw({
         homeScore: state.shownHome,
         awayScore: state.shownAway,
         completed: rawCompleted,
         inProgress: rawInProgress,
         statusState: rawInProgress ? "in" : rawCompleted ? "post" : match.statusState,
-        rawInProgress,
         isProvisional
-      };
+      });
     }
 
     function refreshLiveViews(options = {}) {
@@ -2570,7 +2590,7 @@
     }
 
     function renderGroupHistory(groupName) {
-      const matches = getGroupMatches(groupName).filter((match) => match.completed);
+      const matches = getGroupMatches(groupName).filter((match) => match.rawCompleted ?? match.completed);
       const rows = matches.length
         ? matches.map((match) => {
             const key = matchKey(match.home, match.away, match.utc);
