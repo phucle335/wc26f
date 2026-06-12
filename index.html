@@ -1164,6 +1164,10 @@
       font-weight: 900;
     }
 
+    .table-row .num.is-provisional {
+      color: #ffe08a;
+    }
+
     .match-time {
       display: flex;
       justify-content: space-between;
@@ -1773,6 +1777,8 @@
     let detailTab = "stats";
     let currentDetailSummary = null;
     const summaryCache = new Map();
+    const scoreDelayState = new Map();
+    const SPOILER_DELAY_MS = 90000;
 
     function canonicalName(name) {
       return liveNameAliases[name] || name;
@@ -1784,11 +1790,134 @@
     }
 
     function numberScore(value) {
+      if (value && typeof value === "object") {
+        value = value.displayValue ?? value.value ?? value.summary;
+      }
+
       const parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : null;
     }
 
-    function mergeLiveSchedule() {
+    function readCompetitorScore(competitor) {
+      return numberScore(competitor?.score)
+        ?? numberScore(competitor?.linescores?.[0]?.displayValue)
+        ?? numberScore(competitor?.linescores?.[0]?.value);
+    }
+
+    function formatDataStatus(source) {
+      const time = new Intl.DateTimeFormat("vi-VN", {
+        timeZone: TIMEZONE_VN,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(new Date());
+
+      return source === "ESPN" ? `ESPN · ${time} · trễ 1p30` : "CỤC BỘ";
+    }
+
+    function applySpoilerDelay(match) {
+      const key = matchKey(match.home, match.away, match.utc);
+      const rawHome = match.homeScore;
+      const rawAway = match.awayScore;
+      const hasScore = rawHome !== null && rawAway !== null;
+      const rawInProgress = match.inProgress;
+      const rawCompleted = match.completed;
+
+      if ((!rawInProgress && !rawCompleted) || !hasScore) {
+        return {
+          ...match,
+          rawInProgress,
+          isProvisional: false
+        };
+      }
+
+      let state = scoreDelayState.get(key);
+      if (!state) {
+        state = {
+          shownHome: null,
+          shownAway: null,
+          targetHome: null,
+          targetAway: null,
+          targetSince: 0
+        };
+        scoreDelayState.set(key, state);
+      }
+
+      const now = Date.now();
+
+      if (state.targetHome !== rawHome || state.targetAway !== rawAway) {
+        state.targetHome = rawHome;
+        state.targetAway = rawAway;
+        state.targetSince = now;
+      }
+
+      const delayElapsed = now - state.targetSince >= SPOILER_DELAY_MS;
+      const hasShown = state.shownHome !== null && state.shownAway !== null;
+      const shownDiffers = hasShown && (state.shownHome !== state.targetHome || state.shownAway !== state.targetAway);
+
+      if (!hasShown && delayElapsed) {
+        state.shownHome = state.targetHome;
+        state.shownAway = state.targetAway;
+      } else if (shownDiffers && delayElapsed) {
+        state.shownHome = state.targetHome;
+        state.shownAway = state.targetAway;
+      }
+
+      if (state.shownHome === null || state.shownAway === null) {
+        return {
+          ...match,
+          homeScore: null,
+          awayScore: null,
+          completed: false,
+          inProgress: false,
+          statusState: rawInProgress ? "in" : "pre",
+          rawInProgress,
+          isProvisional: false
+        };
+      }
+
+      const isProvisional = rawInProgress;
+
+      return {
+        ...match,
+        homeScore: state.shownHome,
+        awayScore: state.shownAway,
+        completed: rawCompleted,
+        inProgress: rawInProgress,
+        statusState: rawInProgress ? "in" : rawCompleted ? "post" : match.statusState,
+        rawInProgress,
+        isProvisional
+      };
+    }
+
+    function refreshLiveViews(options = {}) {
+      const { skipCountdown = false } = options;
+
+      if (standingsOverlay === "standings") {
+        renderStandings();
+      } else if (standingsOverlay === "history" && selectedGroupName) {
+        renderGroupHistory(selectedGroupName);
+      } else if (standingsOverlay === "detail" && selectedMatchKey) {
+        refreshMatchDetailScore();
+      }
+
+      if (!skipCountdown) {
+        updateCountdown();
+      }
+    }
+
+    function refreshMatchDetailScore() {
+      const match = getMatchByKey(selectedMatchKey);
+      const scoreEl = matchDetailViewEl?.querySelector(".match-detail-score");
+
+      if (!match || !scoreEl) {
+        return;
+      }
+
+      scoreEl.innerHTML = renderMatchScoreRow(match.home, match.away, scoreText(match));
+    }
+
+    function mergeRawSchedule() {
       const liveEvents = liveData && Array.isArray(liveData.events) ? liveData.events : [];
       const liveIndex = new Map();
 
@@ -1837,8 +1966,12 @@
       });
     }
 
+    function mergeLiveSchedule() {
+      return mergeRawSchedule().map(applySpoilerDelay);
+    }
+
     function scoreText(match) {
-      if (match.homeScore === null || match.awayScore === null || match.statusState === "pre") {
+      if (match.homeScore === null || match.awayScore === null) {
         return "vs";
       }
 
@@ -1846,6 +1979,10 @@
     }
 
     function statusText(match) {
+      if (match.rawInProgress && match.homeScore === null) {
+        return "Trực tiếp";
+      }
+
       if (match.completed) {
         return "Kết thúc";
       }
@@ -1916,7 +2053,7 @@
       const liveTeams = new Set();
 
       mergeLiveSchedule().forEach((match) => {
-        if (match.inProgress) {
+        if (match.inProgress && match.homeScore !== null) {
           liveTeams.add(match.home);
           liveTeams.add(match.away);
         }
@@ -1925,22 +2062,43 @@
       return liveTeams;
     }
 
+    function getProvisionalPointTeams() {
+      const teams = new Set();
+
+      mergeLiveSchedule().forEach((match) => {
+        if (match.isProvisional && match.homeScore !== null) {
+          teams.add(match.home);
+          teams.add(match.away);
+        }
+      });
+
+      return teams;
+    }
+
     function getLiveScoresKey() {
       return mergeLiveSchedule()
-        .filter((match) => match.inProgress || match.completed)
+        .filter((match) => match.inProgress || match.completed || match.rawInProgress)
         .map((match) => {
-          return `${matchKey(match.home, match.away, match.utc)}:${match.homeScore}-${match.awayScore}:${match.inProgress ? 1 : 0}`;
+          return [
+            matchKey(match.home, match.away, match.utc),
+            match.homeScore,
+            match.awayScore,
+            match.inProgress ? 1 : 0,
+            match.rawInProgress ? 1 : 0,
+            match.isProvisional ? 1 : 0,
+            match.completed ? 1 : 0
+          ].join(":");
         })
         .join("|");
     }
 
     function hasLiveMatch() {
-      return mergeLiveSchedule().some((match) => match.inProgress);
+      return mergeRawSchedule().some((match) => match.inProgress);
     }
 
     function scheduleLiveRefresh() {
       window.clearInterval(liveRefreshTimer);
-      const interval = hasLiveMatch() ? 15000 : 30000;
+      const interval = hasLiveMatch() ? 10000 : 20000;
       liveRefreshTimer = window.setInterval(loadLiveData, interval);
     }
 
@@ -2492,7 +2650,7 @@
       });
 
       mergeLiveSchedule().forEach((match) => {
-        if ((!match.completed && !match.inProgress) || match.homeScore === null || match.awayScore === null) {
+        if (match.homeScore === null || match.awayScore === null) {
           return;
         }
 
@@ -2503,27 +2661,45 @@
 
         const home = groupTable[match.home];
         const away = groupTable[match.away];
+        const isFinal = match.completed && !match.isProvisional;
+        const isLive = match.isProvisional;
 
-        home.played += 1;
-        away.played += 1;
-        home.gf += match.homeScore;
-        home.ga += match.awayScore;
-        away.gf += match.awayScore;
-        away.ga += match.homeScore;
+        if (isFinal) {
+          home.played += 1;
+          away.played += 1;
+          home.gf += match.homeScore;
+          home.ga += match.awayScore;
+          away.gf += match.awayScore;
+          away.ga += match.homeScore;
 
-        if (match.homeScore > match.awayScore) {
-          home.wins += 1;
-          away.losses += 1;
-          home.points += 3;
-        } else if (match.homeScore < match.awayScore) {
-          away.wins += 1;
-          home.losses += 1;
-          away.points += 3;
-        } else {
-          home.draws += 1;
-          away.draws += 1;
-          home.points += 1;
-          away.points += 1;
+          if (match.homeScore > match.awayScore) {
+            home.wins += 1;
+            away.losses += 1;
+            home.points += 3;
+          } else if (match.homeScore < match.awayScore) {
+            away.wins += 1;
+            home.losses += 1;
+            away.points += 3;
+          } else {
+            home.draws += 1;
+            away.draws += 1;
+            home.points += 1;
+            away.points += 1;
+          }
+        } else if (isLive) {
+          home.gf += match.homeScore;
+          home.ga += match.awayScore;
+          away.gf += match.awayScore;
+          away.ga += match.homeScore;
+
+          if (match.homeScore > match.awayScore) {
+            home.points += 3;
+          } else if (match.homeScore < match.awayScore) {
+            away.points += 3;
+          } else {
+            home.points += 1;
+            away.points += 1;
+          }
         }
       });
 
@@ -2598,8 +2774,8 @@
             venue: String(competition?.venue?.fullName || ""),
             home: normalizeEspnTeam(home.team?.displayName || "", home.team?.abbreviation || ""),
             away: normalizeEspnTeam(away.team?.displayName || "", away.team?.abbreviation || ""),
-            homeScore: numberScore(home.score),
-            awayScore: numberScore(away.score)
+            homeScore: readCompetitorScore(home),
+            awayScore: readCompetitorScore(away)
           };
         }).filter(Boolean)
       };
@@ -2619,19 +2795,17 @@
         if (window.WORLDCUP_LIVE_DATA && Array.isArray(window.WORLDCUP_LIVE_DATA.events)) {
           liveData = window.WORLDCUP_LIVE_DATA;
           if (dataStatusEl) {
-            dataStatusEl.textContent = "CỤC BỘ";
+            dataStatusEl.textContent = formatDataStatus("local");
           }
-          if (standingsOverlay === "standings") {
-            renderStandings();
-          }
-          updateCountdown();
+          refreshLiveViews();
           scheduleLiveRefresh();
         }
       };
       script.onerror = () => {
         if (dataStatusEl) {
-          dataStatusEl.textContent = "CỤC BỘ";
+          dataStatusEl.textContent = formatDataStatus("local");
         }
+        scheduleLiveRefresh();
       };
       document.body.appendChild(script);
     }
@@ -2647,16 +2821,15 @@
         liveData = transformEspnScoreboard(await response.json());
 
         if (dataStatusEl) {
-          dataStatusEl.textContent = "ESPN";
+          dataStatusEl.textContent = formatDataStatus("ESPN");
         }
 
-        if (standingsOverlay === "standings") {
-          renderStandings();
-        }
-        updateCountdown();
+        lastLiveScoresKey = getLiveScoresKey();
+        refreshLiveViews();
         scheduleLiveRefresh();
       } catch (error) {
         loadBundledLiveData();
+        scheduleLiveRefresh();
       }
     }
 
@@ -2669,6 +2842,7 @@
       const visibleGroups = groups.slice(start, start + standingsGroupsPerPage);
       const standings = buildStandings();
       const liveTeams = getLiveTeamsInStandings();
+      const provisionalTeams = getProvisionalPointTeams();
       const firstGroup = visibleGroups[0].name.replace("Group ", "");
       const lastGroup = visibleGroups[visibleGroups.length - 1].name.replace("Group ", "");
 
@@ -2685,6 +2859,7 @@
         const played = groupRows.reduce((sum, row) => sum + row.played, 0);
         const rows = groupRows.map((row) => {
           const liveBadge = liveTeams.has(row.name) ? '<span class="standings-provisional">LIVE</span>' : "";
+          const provisionalClass = provisionalTeams.has(row.name) ? " is-provisional" : "";
           return `
             <div class="table-row">
               <div class="team-cell">
@@ -2694,8 +2869,8 @@
               <div class="num">${row.wins}</div>
               <div class="num">${row.draws}</div>
               <div class="num">${row.losses}</div>
-              <div class="num">${formatGoalDiff(row.gd)}</div>
-              <div class="num">${row.points}</div>
+              <div class="num${provisionalClass}">${formatGoalDiff(row.gd)}</div>
+              <div class="num${provisionalClass}">${row.points}</div>
             </div>
           `;
         }).join("");
@@ -2826,9 +3001,7 @@
       const scoresKey = getLiveScoresKey();
       if (scoresKey !== lastLiveScoresKey) {
         lastLiveScoresKey = scoresKey;
-        if (standingsOverlay === "standings") {
-          renderStandings();
-        }
+        refreshLiveViews({ skipCountdown: true });
       }
 
       if (next && next.inProgress) {
@@ -2871,6 +3044,12 @@
     renderStandings();
     updateCountdown();
     loadLiveData();
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        loadLiveData();
+      }
+    });
     groupControlsEl.addEventListener("click", (event) => {
       const button = event.target.closest(".group-button");
       if (!button) {
