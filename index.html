@@ -335,7 +335,7 @@
     }
 
     .standings-scroll:not(:has(.standings-overlay:not(.hidden))) {
-      overflow-y: hidden;
+      overflow-y: auto;
       padding-right: 0;
       scrollbar-width: none;
     }
@@ -355,8 +355,15 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 0.45rem;
       min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .standings-groups::-webkit-scrollbar {
+      display: none;
     }
 
     #standingsView .group-card {
@@ -365,7 +372,14 @@
 
     #standingsView .player-stats-entry {
       flex-shrink: 0;
-      margin-top: 0.45rem;
+      margin-top: auto;
+    }
+
+    #playerStatsView {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
     }
 
     .standings-scroll::-webkit-scrollbar,
@@ -1093,7 +1107,10 @@
     }
 
     .player-stats-table-wrap {
+      flex: 1;
+      min-height: 0;
       overflow-x: auto;
+      overflow-y: auto;
       overscroll-behavior: contain;
       border: 0.1rem solid rgba(255, 255, 255, 0.1);
       border-radius: 0.35rem;
@@ -1110,7 +1127,7 @@
 
     .player-stats-table {
       width: 100%;
-      min-width: 18rem;
+      min-width: 16rem;
       border-collapse: collapse;
       font-size: 0.62rem;
     }
@@ -1940,6 +1957,25 @@
       font-size: 0.85rem;
       line-height: 1.5;
       font-weight: 800;
+    }
+
+    @media (max-height: 1080px) {
+      .standings-panel {
+        height: min(50rem, calc(100vh - 5rem));
+      }
+
+      #standingsView .group-card {
+        padding: 0.58rem 0.65rem;
+      }
+
+      #standingsView .table-row {
+        min-height: 1.48rem;
+        font-size: 0.72rem;
+      }
+
+      #standingsView .table-row.header {
+        min-height: 1.15rem;
+      }
     }
 
     @media (max-width: 1280px) {
@@ -3421,8 +3457,38 @@
       const data = await response.json();
       return {
         goals: Array.isArray(data.goals) ? data.goals : [],
-        assists: Array.isArray(data.assists) ? data.assists : []
+        assists: Array.isArray(data.assists) ? data.assists : [],
+        shots: Array.isArray(data.shots) ? data.shots : []
       };
+    }
+
+    function buildPlayerStatMaps(goalsRaw, assistsRaw, shotsRaw) {
+      const goals = new Map();
+      const assists = new Map();
+      const shots = new Map();
+
+      for (const player of goalsRaw || []) {
+        const id = String(player.id || "");
+        if (id) {
+          goals.set(id, Number(player.stats?.g) || 0);
+        }
+      }
+
+      for (const player of assistsRaw || []) {
+        const id = String(player.id || "");
+        if (id) {
+          assists.set(id, Number(player.stats?.a) || 0);
+        }
+      }
+
+      for (const player of shotsRaw || []) {
+        const id = String(player.id || "");
+        if (id) {
+          shots.set(id, Number(player.stats?.s) || 0);
+        }
+      }
+
+      return { goals, assists, shots };
     }
 
     function formatDecimalStat(value) {
@@ -3452,23 +3518,22 @@
       return parsed > 0 ? `+${formatted}` : formatted;
     }
 
-    function parseLiveScorePlayers(players, tab) {
+    function parseLiveScorePlayers(players, tab, statMaps) {
       const metricKey = tab === "assists" ? "a" : "g";
 
       return (players || [])
         .filter((player) => Number(player?.stats?.[metricKey]) > 0)
         .map((player) => {
           const stats = player.stats || {};
+          const id = String(player.id || "");
           return {
-            id: String(player.id || ""),
+            id,
             name: player.name || "—",
             team: normalizeLiveScoreTeam(player.teamName),
             rank: Number(player.rank) || 0,
-            goals: Number(stats.g) || 0,
-            assists: Number(stats.a) || 0,
-            xG: stats.xG,
-            xA: stats.xA,
-            plusMinus: stats.df,
+            goals: statMaps?.goals?.get(id) ?? (Number(stats.g) || 0),
+            assists: statMaps?.assists?.get(id) ?? (Number(stats.a) || 0),
+            shots: statMaps?.shots?.get(id) ?? (Number(stats.s) || 0),
             sortValue: Number(stats[metricKey]) || 0
           };
         })
@@ -3482,7 +3547,8 @@
 
       return {
         goals: window.WORLDCUP_PLAYER_STATS.goals || [],
-        assists: window.WORLDCUP_PLAYER_STATS.assists || []
+        assists: window.WORLDCUP_PLAYER_STATS.assists || [],
+        shots: window.WORLDCUP_PLAYER_STATS.shots || []
       };
     }
 
@@ -3516,19 +3582,23 @@
 
       let goalsRaw = [];
       let assistsRaw = [];
+      let shotsRaw = [];
 
       try {
         const apiData = await fetchLiveScoreStatGroupViaApi();
         goalsRaw = apiData.goals;
         assistsRaw = apiData.assists;
+        shotsRaw = apiData.shots;
       } catch (error) {
         try {
-          const [goalsPage, assistsPage] = await Promise.all([
+          const [goalsPage, assistsPage, shotsPage] = await Promise.all([
             fetchLiveScoreStatGroup("goals"),
-            fetchLiveScoreStatGroup("assist")
+            fetchLiveScoreStatGroup("assist"),
+            fetchLiveScoreStatGroup("shots")
           ]);
           goalsRaw = goalsPage || [];
           assistsRaw = assistsPage || [];
+          shotsRaw = shotsPage || [];
         } catch (directError) {
           const bundled = getBundledPlayerLeaders();
 
@@ -3539,12 +3609,15 @@
           const fallback = getBundledPlayerLeaders();
           goalsRaw = fallback?.goals || [];
           assistsRaw = fallback?.assists || [];
+          shotsRaw = fallback?.shots || [];
         }
       }
 
+      const statMaps = buildPlayerStatMaps(goalsRaw, assistsRaw, shotsRaw);
+
       playerLeadersCache = {
-        goals: parseLiveScorePlayers(goalsRaw, "goals"),
-        assists: parseLiveScorePlayers(assistsRaw, "assists")
+        goals: parseLiveScorePlayers(goalsRaw, "goals", statMaps),
+        assists: parseLiveScorePlayers(assistsRaw, "assists", statMaps)
       };
       playerLeadersFetchedAt = now;
       return playerLeadersCache;
@@ -3577,46 +3650,23 @@
     }
 
     function buildPlayerStatsRows(rows, tab) {
-      return rows.map((row) => {
-        if (tab === "assists") {
-          return {
-            ...row,
-            cells: [
-              { value: row.assists, primary: true },
-              { value: formatDecimalStat(row.xA) },
-              { value: formatPlusMinusStat(row.plusMinus) }
-            ]
-          };
-        }
-
-        return {
-          ...row,
-          cells: [
-            { value: row.goals, primary: true },
-            { value: formatDecimalStat(row.xG) },
-            { value: formatPlusMinusStat(row.plusMinus) }
-          ]
-        };
-      });
+      return rows.map((row) => ({
+        ...row,
+        cells: [
+          { value: row.goals, primary: tab === "goals" },
+          { value: row.assists, primary: tab === "assists" },
+          { value: row.shots, primary: false }
+        ]
+      }));
     }
 
-    function playerStatsHeaders(tab) {
-      if (tab === "assists") {
-        return [
-          "Hạng",
-          "Cầu thủ",
-          "Kiến tạo",
-          "xA",
-          "+/-"
-        ];
-      }
-
+    function playerStatsHeaders() {
       return [
         "Hạng",
         "Cầu thủ",
         "Bàn",
-        "xG",
-        "+/-"
+        "Kiến tạo",
+        "Tổng sút"
       ];
     }
 
@@ -3628,7 +3678,7 @@
       const leaders = await fetchPlayerLeaders();
       const tab = playerStatsTab === "assists" ? "assists" : "goals";
       const rows = buildPlayerStatsRows(leaders[tab] || [], tab);
-      const headers = playerStatsHeaders(tab);
+      const headers = playerStatsHeaders();
       const tableBody = rows.length
         ? rows.map((row) => renderPlayerStatsRow(row)).join("")
         : `<tr><td colspan="${headers.length}">Chưa có dữ liệu cầu thủ.</td></tr>`;

@@ -38,16 +38,18 @@ export default async function handler(request, response) {
   }
 
   try {
-    const [goals, assists] = await Promise.all([
+    const [goals, assists, shots] = await Promise.all([
       fetchStatGroup("goals"),
-      fetchStatGroup("assist")
+      fetchStatGroup("assist"),
+      fetchStatGroup("shots")
     ]);
 
     response.status(200).json({
       source: "LiveScore",
       updatedAt: new Date().toISOString(),
       goals,
-      assists
+      assists,
+      shots
     });
   } catch (error) {
     response.status(500).json({
