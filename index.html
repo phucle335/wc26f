@@ -783,7 +783,7 @@
 
     .match-event-row {
       display: grid;
-      grid-template-columns: 1rem 2.3rem minmax(0, 1fr) 2.1rem auto;
+      grid-template-columns: 1.1rem 2.3rem minmax(0, 1fr) 2.1rem auto;
       align-items: center;
       gap: 0.38rem;
       padding: 0.38rem 0.42rem;
@@ -793,6 +793,27 @@
       font-size: 0.72rem;
       font-weight: 700;
       line-height: 1.3;
+    }
+
+    .match-event-row.is-assist {
+      margin-top: -0.12rem;
+      padding-top: 0.18rem;
+      padding-bottom: 0.38rem;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 0 0 0.32rem 0.32rem;
+    }
+
+    .match-event-row.has-assist-below {
+      border-radius: 0.32rem 0.32rem 0 0;
+      margin-bottom: 0;
+    }
+
+    .match-event-assist-player {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 0.68rem;
     }
 
     .match-event-minute {
@@ -830,15 +851,21 @@
     }
 
     .event-icon-goal {
-      width: 0.88rem;
-      height: 0.88rem;
+      width: 1rem;
+      height: 1rem;
       border-radius: 50%;
       background:
-        radial-gradient(circle at 28% 28%, rgba(255, 255, 255, 0.95) 0.11rem, transparent 0.12rem),
-        radial-gradient(circle at 68% 36%, rgba(255, 255, 255, 0.9) 0.09rem, transparent 0.1rem),
-        radial-gradient(circle at 48% 72%, rgba(255, 255, 255, 0.9) 0.09rem, transparent 0.1rem),
-        #f4f7fb;
-      box-shadow: inset 0 0 0 0.05rem rgba(0, 0, 0, 0.28);
+        center / 88% no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%23ffffff' stroke='%23333333' stroke-width='1'/%3E%3Cpath fill='%23111111' d='M12 4.5l1.9 3.3 3.8-.3-1.4 3.5 2.9 2.3-3.7 1.1 1.4 3.5-3.9-2.3-3.9 2.3 1.4-3.5-3.7-1.1 2.9-2.3-1.4-3.5 3.8.3z'/%3E%3C/svg%3E");
+      box-shadow: 0 0.06rem 0.16rem rgba(0, 0, 0, 0.28);
+    }
+
+    .event-icon-assist {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      background:
+        center / 88% no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%23ffffff' stroke='%23333333' stroke-width='1'/%3E%3Cpath fill='%23111111' d='M16.2 16.8c2-.5 3.1-2 2.8-4-.2-1.3-1.1-2.3-2.3-2.6l-2-.5-2.2 3.9-1 2.6 4.7.6zm-5.8-1.3 1.5-4.6 2.7-.2-1.6 5-2.6-.2z'/%3E%3C/svg%3E");
+      box-shadow: 0 0.06rem 0.16rem rgba(0, 0, 0, 0.28);
     }
 
     .event-icon-yellow {
@@ -3029,6 +3056,16 @@
       return "";
     }
 
+    function extractAssistFromText(text) {
+      const body = String(text || "");
+      const assistedMatch = body.match(/Assisted by\s+([^.]+)/i);
+      if (assistedMatch) {
+        return assistedMatch[1].trim();
+      }
+
+      return "";
+    }
+
     function normalizeEventTeam(name) {
       return canonicalName(liveNameAliases[name] || name || "");
     }
@@ -3052,6 +3089,8 @@
           player,
           teamName: meta.teamName || "",
           athleteId: meta.athleteId || "",
+          assistPlayer: meta.assistPlayer || "",
+          assistId: meta.assistId || "",
           subInId: meta.subInId || "",
           subOutId: meta.subOutId || ""
         });
@@ -3080,6 +3119,18 @@
           meta.subInId = String(participants[0]?.athlete?.id || "");
           meta.subOutId = String(participants[1]?.athlete?.id || "");
           meta.athleteId = meta.subInId;
+        } else if (kindPreview === "goal") {
+          meta.athleteId = String(participants[0]?.athlete?.id || "");
+          if (participants.length >= 2) {
+            meta.assistPlayer = participants[1]?.athlete?.displayName
+              || participants[1]?.athlete?.shortName
+              || "";
+            meta.assistId = String(participants[1]?.athlete?.id || "");
+          }
+
+          if (!meta.assistPlayer) {
+            meta.assistPlayer = extractAssistFromText(text);
+          }
         } else {
           meta.athleteId = String(participants[0]?.athlete?.id || "");
         }
@@ -3326,7 +3377,7 @@
         }
 
         if (!byId.has(id)) {
-          byId.set(id, { goals: 0, yellow: 0, red: 0, subInMin: null, subOutMin: null });
+          byId.set(id, { goals: 0, assists: 0, yellow: 0, red: 0, subInMin: null, subOutMin: null });
         }
 
         return byId.get(id);
@@ -3337,6 +3388,11 @@
           const bucket = ensure(item.athleteId);
           if (bucket) {
             bucket.goals += 1;
+          }
+
+          const assistBucket = ensure(item.assistId);
+          if (assistBucket) {
+            assistBucket.assists += 1;
           }
         }
 
@@ -3511,10 +3567,10 @@
         return '<div class="timeline-empty">Chưa có bàn thắng hoặc thẻ.</div>';
       }
 
-      const rows = keyEvents.map((item) => {
+      const rows = keyEvents.flatMap((item) => {
         const player = item.player || extractPlayerFromText(item.text) || "—";
-        return `
-          <div class="match-event-row">
+        const mainRow = `
+          <div class="match-event-row${item.kind === "goal" && item.assistPlayer ? " has-assist-below" : ""}">
             <span class="event-icon ${eventIconClass(item.kind)}" aria-hidden="true"></span>
             <span class="match-event-minute">${item.minute || "—"}</span>
             <span class="match-event-player">${player}</span>
@@ -3522,6 +3578,22 @@
             <span class="match-event-label">${eventLabel(item.kind)}</span>
           </div>
         `;
+
+        if (item.kind !== "goal" || !item.assistPlayer) {
+          return [mainRow];
+        }
+
+        const assistRow = `
+          <div class="match-event-row is-assist">
+            <span class="event-icon event-icon-assist" aria-hidden="true"></span>
+            <span class="match-event-minute"></span>
+            <span class="match-event-assist-player">${item.assistPlayer}</span>
+            <span class="match-event-team">${resolveEventTeamShort(item, match)}</span>
+            <span class="match-event-label">Kiến tạo</span>
+          </div>
+        `;
+
+        return [mainRow, assistRow];
       }).join("");
 
       const head = showHead ? '<div class="match-event-head">Sự kiện trận đấu</div>' : "";
@@ -3602,11 +3674,15 @@
     function renderPitchPlayer(player, isHome, formation, eventsMap) {
       const coords = getFormationCoords(player.formationPlace, formation, isHome);
       const sideClass = isHome ? "is-home" : "is-away";
-      const events = eventsMap.get(player.id) || { goals: 0, yellow: 0, red: 0, subInMin: null, subOutMin: null };
+      const events = eventsMap.get(player.id) || { goals: 0, assists: 0, yellow: 0, red: 0, subInMin: null, subOutMin: null };
       const icons = [];
 
       for (let i = 0; i < events.goals; i += 1) {
         icons.push('<span class="event-icon event-icon-goal" aria-hidden="true"></span>');
+      }
+
+      for (let i = 0; i < events.assists; i += 1) {
+        icons.push('<span class="event-icon event-icon-assist" aria-hidden="true"></span>');
       }
 
       if (events.yellow) {
@@ -3635,11 +3711,15 @@
     }
 
     function renderBenchPlayer(player, eventsMap) {
-      const events = eventsMap.get(player.id) || { goals: 0, yellow: 0, red: 0, subInMin: null, subOutMin: null };
+      const events = eventsMap.get(player.id) || { goals: 0, assists: 0, yellow: 0, red: 0, subInMin: null, subOutMin: null };
       const icons = [];
 
       for (let i = 0; i < events.goals; i += 1) {
         icons.push('<span class="event-icon event-icon-goal" aria-hidden="true"></span>');
+      }
+
+      for (let i = 0; i < events.assists; i += 1) {
+        icons.push('<span class="event-icon event-icon-assist" aria-hidden="true"></span>');
       }
 
       if (events.yellow) {
