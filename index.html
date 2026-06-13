@@ -931,27 +931,54 @@
       flex-shrink: 0;
     }
 
-    .match-event-card-line {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.42rem;
-      padding: 0.38rem 0.5rem;
-      border-radius: 0.32rem;
+    .match-event-cards-board {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.5rem;
+      border-radius: 0.35rem;
       background: rgba(255, 255, 255, 0.06);
+    }
+
+    .match-event-cards-col {
+      display: grid;
+      gap: 0.28rem;
+      min-width: 0;
       color: #ffffff;
-      font-size: 0.68rem;
+      font-size: 0.66rem;
       font-weight: 700;
       line-height: 1.35;
     }
 
-    .match-event-card-line .event-icon {
-      margin-top: 0.08rem;
+    .match-event-cards-col.is-home {
+      text-align: left;
+      padding-right: 0.2rem;
     }
 
-    .match-event-card-text {
-      flex: 1;
-      min-width: 0;
+    .match-event-cards-col.is-away {
+      text-align: right;
+      padding-left: 0.2rem;
+    }
+
+    .match-event-cards-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      padding: 0 0.12rem;
+    }
+
+    .match-event-cards-icon .event-icon {
+      transform: rotate(-10deg);
+    }
+
+    .match-event-card-row {
       word-break: break-word;
+    }
+
+    .match-event-card-row.is-empty {
+      color: rgba(255, 255, 255, 0.42);
     }
 
     .event-icon {
@@ -4426,13 +4453,31 @@
       `;
     }
 
-    function formatCardList(cardEvents) {
-      return sortEventsByClock(cardEvents)
-        .map((item) => {
-          const player = item.player || extractPlayerFromText(item.text) || "—";
-          return `${item.minute || "—"} ${player}`;
-        })
-        .join(" · ");
+    function formatCardRow(item) {
+      const player = item.player || extractPlayerFromText(item.text) || "—";
+      const minute = item.minute || "—";
+      return `${player} ${minute}`;
+    }
+
+    function renderCardBoard(cardEvents, match, kind) {
+      const sorted = sortEventsByClock(cardEvents);
+      const homeCards = sorted.filter((item) => resolveEventSide(item, match) === "home");
+      const awayCards = sorted.filter((item) => resolveEventSide(item, match) === "away");
+      const iconClass = kind === "yellow" ? "event-icon-yellow" : "event-icon-red";
+
+      return `
+        <div class="match-event-cards-board">
+          <div class="match-event-cards-col is-home">
+            ${homeCards.map((item) => `<div class="match-event-card-row">${formatCardRow(item)}</div>`).join("") || '<div class="match-event-card-row is-empty">—</div>'}
+          </div>
+          <div class="match-event-cards-icon">
+            <span class="event-icon ${iconClass}" aria-hidden="true"></span>
+          </div>
+          <div class="match-event-cards-col is-away">
+            ${awayCards.map((item) => `<div class="match-event-card-row">${formatCardRow(item)}</div>`).join("") || '<div class="match-event-card-row is-empty">—</div>'}
+          </div>
+        </div>
+      `;
     }
 
     function renderMatchEventFeed(events, match, options = {}) {
@@ -4465,21 +4510,11 @@
       }
 
       if (yellows.length) {
-        blocks.push(`
-          <div class="match-event-card-line">
-            <span class="event-icon event-icon-yellow" aria-hidden="true"></span>
-            <span class="match-event-card-text">${formatCardList(yellows)}</span>
-          </div>
-        `);
+        blocks.push(renderCardBoard(yellows, match, "yellow"));
       }
 
       if (reds.length) {
-        blocks.push(`
-          <div class="match-event-card-line">
-            <span class="event-icon event-icon-red" aria-hidden="true"></span>
-            <span class="match-event-card-text">${formatCardList(reds)}</span>
-          </div>
-        `);
+        blocks.push(renderCardBoard(reds, match, "red"));
       }
 
       const head = showHead ? '<div class="match-event-head">Sự kiện trận đấu</div>' : "";
