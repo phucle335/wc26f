@@ -382,6 +382,10 @@
       min-height: 0;
     }
 
+    #playerStatsView.hidden {
+      display: none;
+    }
+
     .standings-scroll::-webkit-scrollbar,
     .fixtures-list::-webkit-scrollbar {
       width: 0.55rem;
@@ -5254,6 +5258,12 @@
     });
 
     standingsScrollEl.addEventListener("click", (event) => {
+      const groupCard = event.target.closest(".group-card[data-group]");
+      if (groupCard && standingsOverlay === "standings") {
+        openGroupHistory(groupCard.dataset.group);
+        return;
+      }
+
       const playerStatsEntry = event.target.closest('[data-action="open-player-stats"]');
       if (playerStatsEntry && standingsOverlay === "standings") {
         openPlayerStats("goals");
@@ -5263,12 +5273,6 @@
       const playerTabButton = event.target.closest("[data-player-tab]");
       if (playerTabButton && standingsOverlay === "players") {
         switchPlayerStatsTab(playerTabButton.dataset.playerTab);
-        return;
-      }
-
-      const groupCard = event.target.closest(".group-card[data-group]");
-      if (groupCard && standingsOverlay === "standings") {
-        openGroupHistory(groupCard.dataset.group);
         return;
       }
 
