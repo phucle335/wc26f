@@ -54,8 +54,6 @@
 
     .bg-poster {
       --bg-image: url("assets/bg-poster.jpg");
-      --wallpaper-w: 1915;
-      --wallpaper-h: 1030;
       position: absolute;
       inset: 0;
       z-index: 0;
@@ -71,12 +69,10 @@
     }
 
     .bg-poster.is-custom-bg .bg-poster-frame {
-      inset: auto;
-      left: 50%;
-      top: 50%;
-      width: min(100vw, calc(100vh * var(--wallpaper-w) / var(--wallpaper-h)));
-      height: min(100vh, calc(100vw * var(--wallpaper-h) / var(--wallpaper-w)));
-      transform: translate(-50%, -50%);
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transform: none;
     }
 
     /* Làm mờ viền khi ảnh dọc không phủ hết màn hình ngang */
@@ -107,7 +103,7 @@
     }
 
     .bg-poster.is-custom-bg img {
-      object-fit: contain;
+      object-fit: cover;
       object-position: center center;
     }
 
@@ -5660,18 +5656,6 @@
         twoK: { w: 2560, h: 1392 }
       };
 
-      function isLocalWallpaperContext() {
-        const host = window.location.hostname;
-        return window.location.protocol === "file:"
-          || host === "localhost"
-          || host === "127.0.0.1"
-          || typeof window.lively !== "undefined";
-      }
-
-      if (!isLocalWallpaperContext()) {
-        return;
-      }
-
       const bgPoster = document.querySelector(".bg-poster");
       const bgImg = bgPoster.querySelector("img");
       const pickerRoot = document.getElementById("bgPicker");
@@ -5682,8 +5666,20 @@
       const applyUrlButton = document.getElementById("bgPickerApplyUrl");
       const resetButton = document.getElementById("bgPickerReset");
       const noteEl = document.getElementById("bgPickerNote");
+      let initialized = false;
 
-      pickerRoot.classList.add("is-visible");
+      function isLivelyWallpaper() {
+        return typeof window.lively !== "undefined"
+          || Boolean(window.chrome && window.chrome.webview);
+      }
+
+      function isLocalWallpaperContext() {
+        const host = window.location.hostname;
+        return window.location.protocol === "file:"
+          || host === "localhost"
+          || host === "127.0.0.1"
+          || isLivelyWallpaper();
+      }
 
       function getWallpaperSize() {
         const isFullHd = window.innerHeight <= 1080 && window.innerWidth <= 1920;
@@ -5692,11 +5688,8 @@
 
       function applyWallpaperFrame() {
         const size = getWallpaperSize();
-        bgPoster.style.setProperty("--wallpaper-w", String(size.w));
-        bgPoster.style.setProperty("--wallpaper-h", String(size.h));
-
         if (noteEl) {
-          noteEl.textContent = `Khung wallpaper ${size.w}×${size.h} · Hiển thị full ảnh, không cắt.`;
+          noteEl.textContent = `Khung ${size.w}×${size.h} · Phủ kín màn hình, không dư 2 bên.`;
         }
       }
 
@@ -5705,9 +5698,47 @@
         return `url("${escaped}")`;
       }
 
+      function saveBackground(src) {
+        try {
+          localStorage.setItem(STORAGE_KEY, src);
+        } catch (error) {
+          console.warn("Không thể lưu hình nền.", error);
+        }
+
+        if (window.lively && typeof window.lively.wallpaperProperty !== "undefined") {
+          window.lively.wallpaperProperty.customBg = src;
+        }
+      }
+
+      function loadSavedBackground() {
+        if (window.lively && window.lively.wallpaperProperty && window.lively.wallpaperProperty.customBg) {
+          return window.lively.wallpaperProperty.customBg;
+        }
+
+        try {
+          return localStorage.getItem(STORAGE_KEY) || "";
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function clearSavedBackground() {
+        localStorage.removeItem(STORAGE_KEY);
+
+        if (window.lively && typeof window.lively.wallpaperProperty !== "undefined") {
+          window.lively.wallpaperProperty.customBg = "";
+        }
+      }
+
       function applyBackground(src, persist) {
         bgPoster.classList.add("is-custom-bg");
         bgPoster.style.setProperty("--bg-image", toCssUrl(src));
+        bgImg.onerror = () => {
+          console.warn("Không tải được hình nền:", src);
+        };
+        bgImg.onload = () => {
+          applyWallpaperFrame();
+        };
         bgImg.src = src;
         applyWallpaperFrame();
 
@@ -5716,11 +5747,7 @@
         }
 
         if (persist) {
-          try {
-            localStorage.setItem(STORAGE_KEY, src);
-          } catch (error) {
-            console.warn("Không thể lưu hình nền.", error);
-          }
+          saveBackground(src);
         }
       }
 
@@ -5728,7 +5755,7 @@
         bgPoster.classList.remove("is-custom-bg");
         bgPoster.style.setProperty("--bg-image", toCssUrl(DEFAULT_BG));
         bgImg.src = DEFAULT_BG;
-        localStorage.removeItem(STORAGE_KEY);
+        clearSavedBackground();
         urlInput.value = "";
         fileInput.value = "";
         applyWallpaperFrame();
@@ -5788,55 +5815,93 @@
         reader.readAsDataURL(file);
       }
 
-      toggleButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        setPanelOpen(panel.classList.contains("hidden"));
-      });
+      function bindPickerEvents() {
+        toggleButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          setPanelOpen(panel.classList.contains("hidden"));
+        });
 
-      applyUrlButton.addEventListener("click", applyFromUrlInput);
+        applyUrlButton.addEventListener("click", applyFromUrlInput);
 
-      urlInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          applyFromUrlInput();
+        urlInput.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            applyFromUrlInput();
+          }
+        });
+
+        fileInput.addEventListener("change", () => {
+          applyFromFile(fileInput.files[0]);
+          fileInput.value = "";
+        });
+
+        resetButton.addEventListener("click", () => {
+          applyDefaultBackground();
+          setPanelOpen(false);
+        });
+
+        document.addEventListener("click", (event) => {
+          if (panel.classList.contains("hidden") || pickerRoot.contains(event.target)) {
+            return;
+          }
+
+          setPanelOpen(false);
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            setPanelOpen(false);
+          }
+        });
+
+        window.addEventListener("resize", applyWallpaperFrame, { passive: true });
+      }
+
+      function restoreSavedBackground() {
+        const urlParamBg = readBgFromUrlParam();
+        const savedBg = loadSavedBackground();
+
+        if (urlParamBg) {
+          applyBackground(urlParamBg, false);
+        } else if (savedBg) {
+          applyBackground(savedBg, false);
+        } else {
+          applyWallpaperFrame();
         }
-      });
+      }
 
-      fileInput.addEventListener("change", () => {
-        applyFromFile(fileInput.files[0]);
-        fileInput.value = "";
-      });
-
-      resetButton.addEventListener("click", () => {
-        applyDefaultBackground();
-        setPanelOpen(false);
-      });
-
-      document.addEventListener("click", (event) => {
-        if (panel.classList.contains("hidden") || pickerRoot.contains(event.target)) {
+      function bootWallpaperTools() {
+        if (initialized || !isLocalWallpaperContext()) {
           return;
         }
 
-        setPanelOpen(false);
-      });
+        initialized = true;
+        pickerRoot.classList.add("is-visible");
+        bindPickerEvents();
+        restoreSavedBackground();
+      }
 
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          setPanelOpen(false);
+      const previousLivelyReady = window.livelyReady;
+      window.livelyReady = function livelyReady() {
+        if (typeof previousLivelyReady === "function") {
+          previousLivelyReady();
         }
-      });
 
-      window.addEventListener("resize", applyWallpaperFrame, { passive: true });
+        bootWallpaperTools();
+      };
 
-      const urlParamBg = readBgFromUrlParam();
-      const savedBg = localStorage.getItem(STORAGE_KEY);
+      bootWallpaperTools();
 
-      if (urlParamBg) {
-        applyBackground(urlParamBg, false);
-      } else if (savedBg) {
-        applyBackground(savedBg, false);
-      } else {
-        applyWallpaperFrame();
+      if (!initialized) {
+        let attempts = 0;
+        const livelyPoll = window.setInterval(() => {
+          attempts += 1;
+          bootWallpaperTools();
+
+          if (initialized || attempts >= 40) {
+            window.clearInterval(livelyPoll);
+          }
+        }, 250);
       }
     })();
 
