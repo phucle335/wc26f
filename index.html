@@ -239,6 +239,10 @@
       padding: 1rem;
     }
 
+    .standings-panel .standings-scroll {
+      margin-top: 0.9rem;
+    }
+
     .fixtures-panel {
       min-height: 36rem;
       padding: 1rem;
@@ -328,6 +332,40 @@
       scrollbar-width: auto;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
+    }
+
+    .standings-scroll:not(:has(.standings-overlay:not(.hidden))) {
+      overflow-y: hidden;
+      padding-right: 0;
+      scrollbar-width: none;
+    }
+
+    .standings-scroll:not(:has(.standings-overlay:not(.hidden)))::-webkit-scrollbar {
+      display: none;
+    }
+
+    #standingsView {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .standings-groups {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 0;
+    }
+
+    #standingsView .group-card {
+      margin-bottom: 0;
+    }
+
+    #standingsView .player-stats-entry {
+      flex-shrink: 0;
+      margin-top: 0.45rem;
     }
 
     .standings-scroll::-webkit-scrollbar,
@@ -993,8 +1031,158 @@
     }
 
     .standings-overlay.hidden,
-    #standingsView.hidden {
+    #standingsView.hidden,
+    .panel-tools.is-hidden {
       display: none;
+    }
+
+    .player-stats-entry {
+      display: block;
+      width: 100%;
+      margin-top: 0.45rem;
+      padding: 0.5rem 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.84);
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-align: center;
+      cursor: pointer;
+      text-shadow: var(--read-shadow);
+      line-height: 1.2;
+      transition: color 180ms ease, text-shadow 180ms ease;
+    }
+
+    .player-stats-entry:hover,
+    .player-stats-entry:focus-visible {
+      color: #ffffff;
+      text-shadow:
+        var(--read-shadow),
+        0 0 0.65rem rgba(255, 255, 255, 0.45);
+      outline: 0;
+    }
+
+    .player-stats-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .player-stats-tab {
+      padding: 0.45rem 0.55rem;
+      border: 0.1rem solid rgba(255, 255, 255, 0.14);
+      border-radius: 0.32rem;
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.78);
+      font: inherit;
+      font-size: 0.68rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .player-stats-tab.active {
+      color: #07121a;
+      border-color: var(--gold);
+      background: var(--gold);
+    }
+
+    .player-stats-table-wrap {
+      overflow-x: auto;
+      overscroll-behavior: contain;
+      border: 0.1rem solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.35rem;
+      background: rgba(0, 0, 0, 0.16);
+    }
+
+    .player-stats-source {
+      margin-top: 0.45rem;
+      color: rgba(200, 216, 236, 0.82);
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .player-stats-table {
+      width: 100%;
+      min-width: 18rem;
+      border-collapse: collapse;
+      font-size: 0.62rem;
+    }
+
+    .player-stats-table th,
+    .player-stats-table td {
+      padding: 0.42rem 0.38rem;
+      border-bottom: 0.06rem solid rgba(255, 255, 255, 0.08);
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .player-stats-table th {
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 0.58rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .player-stats-table td.player-col {
+      text-align: left;
+      min-width: 8.5rem;
+      max-width: 10rem;
+      white-space: normal;
+    }
+
+    .player-stats-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .player-stats-player {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+
+    .player-stats-player .flag-img {
+      width: 1rem;
+      height: 0.72rem;
+      flex-shrink: 0;
+    }
+
+    .player-stats-name {
+      display: grid;
+      gap: 0.08rem;
+      min-width: 0;
+    }
+
+    .player-stats-name strong {
+      font-size: 0.64rem;
+      font-weight: 900;
+      color: #fff8e8;
+    }
+
+    .player-stats-team {
+      font-size: 0.56rem;
+      color: rgba(200, 216, 236, 0.88);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .player-stats-rank {
+      font-weight: 900;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .player-stats-primary {
+      font-weight: 900;
+      color: var(--gold);
     }
 
     .history-back {
@@ -1807,8 +1995,13 @@
       }
 
       .standings-scroll {
-        flex: none;
-        height: 34rem;
+        flex: 1;
+        min-height: 0;
+        height: auto;
+        max-height: none;
+      }
+
+      .standings-scroll:has(.standings-overlay:not(.hidden)) {
         max-height: 34rem;
       }
 
@@ -2002,6 +2195,7 @@
         </div>
         <div class="standings-scroll" id="standingsScroll">
           <div id="standingsView"></div>
+          <div id="playerStatsView" class="standings-overlay hidden"></div>
           <div id="groupHistoryView" class="standings-overlay hidden"></div>
           <div id="matchDetailView" class="standings-overlay hidden"></div>
         </div>
@@ -2429,7 +2623,10 @@
 
     const standingsScrollEl = document.getElementById("standingsScroll");
     const standingsViewEl = document.getElementById("standingsView");
+    const playerStatsViewEl = document.getElementById("playerStatsView");
     const groupHistoryViewEl = document.getElementById("groupHistoryView");
+    const groupControlsEl = document.getElementById("groupControls");
+    const standingsPanelTitleEl = document.querySelector(".standings-panel .panel-title");
     const matchDetailViewEl = document.getElementById("matchDetailView");
     const standingsKickerEl = document.getElementById("standingsKicker");
     const fixturesEl = document.getElementById("fixtures");
@@ -2454,7 +2651,6 @@
     const matchTitleEl = document.getElementById("matchTitle");
     const matchTimeEl = document.getElementById("matchTime");
     const localClockEl = document.getElementById("localClock");
-    const groupControlsEl = document.getElementById("groupControls");
     const dataStatusEl = document.getElementById("dataStatus");
 
     function pad(value, size) {
@@ -2582,7 +2778,9 @@
       "Congo DR": "DR Congo",
       "Curaçao": "Curacao",
       "South Korea": "Korea Republic",
-      "Türkiye": "Turkey"
+      "Türkiye": "Turkey",
+      USA: "United States",
+      "Bosnia & Herzegovina": "Bosnia and Herzegovina"
     };
 
     let liveData = null;
@@ -2592,8 +2790,14 @@
     let selectedGroupName = "";
     let selectedMatchKey = "";
     let centerMatchKey = "";
+    let playerStatsTab = "goals";
+    let playerLeadersCache = null;
+    let playerLeadersFetchedAt = 0;
     let detailTab = "stats";
     let currentDetailSummary = null;
+    const liveScoreStatsApi = "/api/livescore-stats";
+    const liveScoreStatsPageBase = "https://www.livescore.com/en/football/international/world-cup-2026/stats";
+    const PLAYER_LEADERS_CACHE_MS = 120000;
     const summaryCache = new Map();
     const scoreDelayState = new Map();
     const SPOILER_DELAY_MS = 150000;
@@ -2821,6 +3025,8 @@
 
       if (standingsOverlay === "standings") {
         renderStandings();
+      } else if (standingsOverlay === "players") {
+        renderPlayerStatsView();
       } else if (standingsOverlay === "history" && selectedGroupName) {
         renderGroupHistory(selectedGroupName);
       } else if (standingsOverlay === "detail" && selectedMatchKey) {
@@ -3140,20 +3346,328 @@
       return mergeLiveSchedule().find((match) => matchKey(match.home, match.away, match.utc) === key);
     }
 
+    function setStandingsPanelHead(mode) {
+      if (groupControlsEl) {
+        groupControlsEl.classList.toggle("is-hidden", mode !== "standings");
+      }
+
+      if (standingsPanelTitleEl) {
+        standingsPanelTitleEl.textContent = mode === "players"
+          ? "Top Goals · Top Assists"
+          : "Bảng xếp hạng vòng bảng";
+      }
+    }
+
     function showStandingsView() {
       standingsOverlay = "standings";
       standingsViewEl.classList.remove("hidden");
+      playerStatsViewEl.classList.add("hidden");
       groupHistoryViewEl.classList.add("hidden");
       matchDetailViewEl.classList.add("hidden");
+      setStandingsPanelHead("standings");
       renderStandings();
+    }
+
+    async function openPlayerStats(tab = playerStatsTab) {
+      standingsOverlay = "players";
+      playerStatsTab = tab;
+      standingsViewEl.classList.add("hidden");
+      playerStatsViewEl.classList.remove("hidden");
+      groupHistoryViewEl.classList.add("hidden");
+      matchDetailViewEl.classList.add("hidden");
+      setStandingsPanelHead("players");
+
+      if (standingsKickerEl) {
+        standingsKickerEl.textContent = "WC26";
+      }
+
+      playerStatsViewEl.innerHTML = '<div class="timeline-empty">Đang tải...</div>';
+      await renderPlayerStatsView();
+    }
+
+    function normalizeLiveScoreTeam(name) {
+      return canonicalName(name || "");
+    }
+
+    function extractLiveScorePlayersFromHtml(html) {
+      const match = String(html || "").match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+
+      if (!match) {
+        return null;
+      }
+
+      const data = JSON.parse(match[1]);
+      const players = data?.props?.pageProps?.initialData?.stats?.players;
+      return Array.isArray(players) ? players : null;
+    }
+
+    async function fetchLiveScoreStatGroup(group) {
+      const response = await fetch(`${liveScoreStatsPageBase}/${group}/`, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`LiveScore ${group} ${response.status}`);
+      }
+
+      return extractLiveScorePlayersFromHtml(await response.text());
+    }
+
+    async function fetchLiveScoreStatGroupViaApi() {
+      const response = await fetch(liveScoreStatsApi, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`LiveScore API ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        goals: Array.isArray(data.goals) ? data.goals : [],
+        assists: Array.isArray(data.assists) ? data.assists : []
+      };
+    }
+
+    function formatDecimalStat(value) {
+      if (value === null || value === undefined || value === "") {
+        return "—";
+      }
+
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return "—";
+      }
+
+      return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(1);
+    }
+
+    function formatPlusMinusStat(value) {
+      if (value === null || value === undefined || value === "") {
+        return "—";
+      }
+
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        return "—";
+      }
+
+      const formatted = formatDecimalStat(parsed);
+      return parsed > 0 ? `+${formatted}` : formatted;
+    }
+
+    function parseLiveScorePlayers(players, tab) {
+      const metricKey = tab === "assists" ? "a" : "g";
+
+      return (players || [])
+        .filter((player) => Number(player?.stats?.[metricKey]) > 0)
+        .map((player) => {
+          const stats = player.stats || {};
+          return {
+            id: String(player.id || ""),
+            name: player.name || "—",
+            team: normalizeLiveScoreTeam(player.teamName),
+            rank: Number(player.rank) || 0,
+            goals: Number(stats.g) || 0,
+            assists: Number(stats.a) || 0,
+            xG: stats.xG,
+            xA: stats.xA,
+            plusMinus: stats.df,
+            sortValue: Number(stats[metricKey]) || 0
+          };
+        })
+        .sort((a, b) => a.rank - b.rank || b.sortValue - a.sortValue || a.name.localeCompare(b.name));
+    }
+
+    function getBundledPlayerLeaders() {
+      if (!window.WORLDCUP_PLAYER_STATS) {
+        return null;
+      }
+
+      return {
+        goals: window.WORLDCUP_PLAYER_STATS.goals || [],
+        assists: window.WORLDCUP_PLAYER_STATS.assists || []
+      };
+    }
+
+    function loadBundledPlayerStats() {
+      return new Promise((resolve) => {
+        if (window.WORLDCUP_PLAYER_STATS) {
+          resolve(window.WORLDCUP_PLAYER_STATS);
+          return;
+        }
+
+        const script = document.createElement("script");
+        const previous = document.getElementById("playerStatsScript");
+
+        if (previous) {
+          previous.remove();
+        }
+
+        script.id = "playerStatsScript";
+        script.src = `worldcup-player-stats.js?ts=${Date.now()}`;
+        script.onload = () => resolve(window.WORLDCUP_PLAYER_STATS || null);
+        script.onerror = () => resolve(null);
+        document.body.appendChild(script);
+      });
+    }
+
+    async function fetchPlayerLeaders(force = false) {
+      const now = Date.now();
+      if (!force && playerLeadersCache && now - playerLeadersFetchedAt < PLAYER_LEADERS_CACHE_MS) {
+        return playerLeadersCache;
+      }
+
+      let goalsRaw = [];
+      let assistsRaw = [];
+
+      try {
+        const apiData = await fetchLiveScoreStatGroupViaApi();
+        goalsRaw = apiData.goals;
+        assistsRaw = apiData.assists;
+      } catch (error) {
+        try {
+          const [goalsPage, assistsPage] = await Promise.all([
+            fetchLiveScoreStatGroup("goals"),
+            fetchLiveScoreStatGroup("assist")
+          ]);
+          goalsRaw = goalsPage || [];
+          assistsRaw = assistsPage || [];
+        } catch (directError) {
+          const bundled = getBundledPlayerLeaders();
+
+          if (!bundled) {
+            await loadBundledPlayerStats();
+          }
+
+          const fallback = getBundledPlayerLeaders();
+          goalsRaw = fallback?.goals || [];
+          assistsRaw = fallback?.assists || [];
+        }
+      }
+
+      playerLeadersCache = {
+        goals: parseLiveScorePlayers(goalsRaw, "goals"),
+        assists: parseLiveScorePlayers(assistsRaw, "assists")
+      };
+      playerLeadersFetchedAt = now;
+      return playerLeadersCache;
+    }
+
+    function formatStatCell(value) {
+      if (value === null || value === undefined || value === "") {
+        return "—";
+      }
+
+      return String(value);
+    }
+
+    function renderPlayerStatsRow(row) {
+      return `
+        <tr>
+          <td class="player-stats-rank">${row.rank}</td>
+          <td class="player-col">
+            <div class="player-stats-player">
+              <span class="flag-img" style="${flagStyle(row.team)}" aria-hidden="true"></span>
+              <div class="player-stats-name">
+                <strong>${row.name}</strong>
+                <span class="player-stats-team">${row.team || "—"}</span>
+              </div>
+            </div>
+          </td>
+          ${row.cells.map((cell) => `<td${cell.primary ? ' class="player-stats-primary"' : ""}>${formatStatCell(cell.value)}</td>`).join("")}
+        </tr>
+      `;
+    }
+
+    function buildPlayerStatsRows(rows, tab) {
+      return rows.map((row) => {
+        if (tab === "assists") {
+          return {
+            ...row,
+            cells: [
+              { value: row.assists, primary: true },
+              { value: formatDecimalStat(row.xA) },
+              { value: formatPlusMinusStat(row.plusMinus) }
+            ]
+          };
+        }
+
+        return {
+          ...row,
+          cells: [
+            { value: row.goals, primary: true },
+            { value: formatDecimalStat(row.xG) },
+            { value: formatPlusMinusStat(row.plusMinus) }
+          ]
+        };
+      });
+    }
+
+    function playerStatsHeaders(tab) {
+      if (tab === "assists") {
+        return [
+          "Hạng",
+          "Cầu thủ",
+          "Kiến tạo",
+          "xA",
+          "+/-"
+        ];
+      }
+
+      return [
+        "Hạng",
+        "Cầu thủ",
+        "Bàn",
+        "xG",
+        "+/-"
+      ];
+    }
+
+    async function renderPlayerStatsView() {
+      if (!playerStatsViewEl || standingsOverlay !== "players") {
+        return;
+      }
+
+      const leaders = await fetchPlayerLeaders();
+      const tab = playerStatsTab === "assists" ? "assists" : "goals";
+      const rows = buildPlayerStatsRows(leaders[tab] || [], tab);
+      const headers = playerStatsHeaders(tab);
+      const tableBody = rows.length
+        ? rows.map((row) => renderPlayerStatsRow(row)).join("")
+        : `<tr><td colspan="${headers.length}">Chưa có dữ liệu cầu thủ.</td></tr>`;
+
+      playerStatsViewEl.innerHTML = `
+        <button class="history-back" type="button" data-action="back-standings">← Quay lại bảng</button>
+        <div class="player-stats-tabs" role="tablist" aria-label="Thống kê cầu thủ">
+          <button class="player-stats-tab${tab === "goals" ? " active" : ""}" type="button" data-player-tab="goals" role="tab" aria-selected="${tab === "goals"}">Top ghi bàn</button>
+          <button class="player-stats-tab${tab === "assists" ? " active" : ""}" type="button" data-player-tab="assists" role="tab" aria-selected="${tab === "assists"}">Top kiến tạo</button>
+        </div>
+        <div class="player-stats-table-wrap">
+          <table class="player-stats-table">
+            <thead>
+              <tr>${headers.map((label) => `<th>${label}</th>`).join("")}</tr>
+            </thead>
+            <tbody>${tableBody}</tbody>
+          </table>
+        </div>
+        <div class="player-stats-source">Nguồn: LiveScore · WC26</div>
+      `;
+    }
+
+    function switchPlayerStatsTab(tab) {
+      if (tab !== "goals" && tab !== "assists") {
+        return;
+      }
+
+      playerStatsTab = tab;
+      renderPlayerStatsView();
     }
 
     function openGroupHistory(groupName) {
       standingsOverlay = "history";
       selectedGroupName = groupName;
       standingsViewEl.classList.add("hidden");
+      playerStatsViewEl.classList.add("hidden");
       groupHistoryViewEl.classList.remove("hidden");
       matchDetailViewEl.classList.add("hidden");
+      setStandingsPanelHead("standings");
       renderGroupHistory(groupName);
     }
 
@@ -3162,8 +3676,10 @@
       selectedMatchKey = matchKey;
       detailTab = tab;
       standingsViewEl.classList.add("hidden");
+      playerStatsViewEl.classList.add("hidden");
       groupHistoryViewEl.classList.add("hidden");
       matchDetailViewEl.classList.remove("hidden");
+      setStandingsPanelHead("standings");
       renderMatchDetail(matchKey, tab);
     }
 
@@ -4457,7 +4973,9 @@
         button.classList.toggle("active", Number(button.dataset.page) === standingsPage);
       });
 
-      standingsViewEl.innerHTML = visibleGroups.map((group) => {
+      standingsViewEl.innerHTML = `
+        <div class="standings-groups">
+          ${visibleGroups.map((group) => {
         const groupRows = sortedGroupRows(group, standings);
         const played = groupRows.reduce((sum, row) => sum + row.played, 0);
         const rows = groupRows.map((row) => {
@@ -4495,7 +5013,12 @@
             ${rows}
           </section>
         `;
-      }).join("");
+      }).join("")}
+        </div>
+        <button class="player-stats-entry" type="button" data-action="open-player-stats">
+          Top Goals · Top Assists
+        </button>
+      `;
     }
 
     function setStandingsPage(page) {
@@ -4681,6 +5204,18 @@
     });
 
     standingsScrollEl.addEventListener("click", (event) => {
+      const playerStatsEntry = event.target.closest('[data-action="open-player-stats"]');
+      if (playerStatsEntry && standingsOverlay === "standings") {
+        openPlayerStats("goals");
+        return;
+      }
+
+      const playerTabButton = event.target.closest("[data-player-tab]");
+      if (playerTabButton && standingsOverlay === "players") {
+        switchPlayerStatsTab(playerTabButton.dataset.playerTab);
+        return;
+      }
+
       const groupCard = event.target.closest(".group-card[data-group]");
       if (groupCard && standingsOverlay === "standings") {
         openGroupHistory(groupCard.dataset.group);
