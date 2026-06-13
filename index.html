@@ -1042,6 +1042,11 @@
       border-color: rgba(255, 209, 102, 0.42);
     }
 
+    .history-match-row.is-live {
+      border-color: rgba(255, 209, 102, 0.55);
+      box-shadow: 0 0 0.35rem rgba(255, 209, 102, 0.12);
+    }
+
     .history-match-score,
     .match-detail-score {
       display: grid;
@@ -2657,7 +2662,9 @@
           targetHome: null,
           targetAway: null,
           targetSince: 0,
-          wasLive: false
+          wasLive: false,
+          latestSummary: null,
+          shownSummary: null
         };
         scoreDelayState.set(key, state);
       }
@@ -2697,9 +2704,11 @@
       if (!hasShown && delayElapsed) {
         state.shownHome = state.targetHome;
         state.shownAway = state.targetAway;
+        commitSummaryOnScoreReveal(state);
       } else if (shownDiffers && delayElapsed) {
         state.shownHome = state.targetHome;
         state.shownAway = state.targetAway;
+        commitSummaryOnScoreReveal(state);
       }
 
       if (state.shownHome === null || state.shownAway === null) {
@@ -2725,6 +2734,88 @@
       });
     }
 
+    function commitSummaryOnScoreReveal(state) {
+      if (state?.latestSummary) {
+        state.shownSummary = state.latestSummary;
+      }
+    }
+
+    function createEmptyMatchSummary() {
+      return {
+        events: [],
+        stats: null,
+        statsData: null,
+        lineups: null
+      };
+    }
+
+    function needsSpoilerDelay(match, state) {
+      const rawInProgress = match.rawInProgress ?? match.inProgress;
+      const rawCompleted = match.rawCompleted ?? match.completed;
+
+      if (!rawInProgress && !rawCompleted) {
+        return false;
+      }
+
+      if (rawCompleted && !rawInProgress && state && !state.wasLive) {
+        return false;
+      }
+
+      return true;
+    }
+
+    function withLatestLineups(summary, freshSummary) {
+      if (!freshSummary?.lineups) {
+        return summary;
+      }
+
+      return {
+        ...summary,
+        lineups: freshSummary.lineups
+      };
+    }
+
+    function resolveDisplayedSummary(match, freshSummary) {
+      if (!freshSummary) {
+        return null;
+      }
+
+      const key = matchKey(match.home, match.away, match.utc);
+      const state = scoreDelayState.get(key);
+
+      if (!needsSpoilerDelay(match, state)) {
+        return freshSummary;
+      }
+
+      if (!state) {
+        return withLatestLineups(createEmptyMatchSummary(), freshSummary);
+      }
+
+      state.latestSummary = freshSummary;
+
+      if (state.shownHome === null || state.shownAway === null) {
+        return withLatestLineups(state.shownSummary || createEmptyMatchSummary(), freshSummary);
+      }
+
+      const pendingScoreChange = state.targetHome !== state.shownHome || state.targetAway !== state.shownAway;
+
+      if (!pendingScoreChange) {
+        state.shownSummary = freshSummary;
+        return freshSummary;
+      }
+
+      return withLatestLineups(state.shownSummary || createEmptyMatchSummary(), freshSummary);
+    }
+
+    async function fetchDisplayMatchSummary(match) {
+      const fresh = await fetchMatchSummary(match.espnId);
+      if (!fresh) {
+        return null;
+      }
+
+      return resolveDisplayedSummary(match, fresh);
+    }
+
     function refreshLiveViews(options = {}) {
       const { skipCountdown = false } = options;
 
@@ -2733,7 +2824,7 @@
       } else if (standingsOverlay === "history" && selectedGroupName) {
         renderGroupHistory(selectedGroupName);
       } else if (standingsOverlay === "detail" && selectedMatchKey) {
-        refreshMatchDetailScore();
+        refreshMatchDetailPanel();
       }
 
       if (!skipCountdown) {
@@ -2744,12 +2835,37 @@
     function refreshMatchDetailScore() {
       const match = getMatchByKey(selectedMatchKey);
       const scoreEl = matchDetailViewEl?.querySelector(".match-detail-score");
+      const metaEl = matchDetailViewEl?.querySelector(".match-detail-meta");
 
       if (!match || !scoreEl) {
         return;
       }
 
       scoreEl.innerHTML = renderMatchScoreRow(match.home, match.away, scoreText(match));
+
+      if (metaEl) {
+        const live = match.inProgress || match.rawInProgress;
+        metaEl.textContent = live
+          ? `${liveMinuteText(match)} · LIVE · ${match.venue}`
+          : `Giờ VN ${formatVietnamTime(match.utc)} · ${match.venue}`;
+      }
+    }
+
+    async function refreshMatchDetailPanel() {
+      const match = getMatchByKey(selectedMatchKey);
+      if (!match || standingsOverlay !== "detail") {
+        return;
+      }
+
+      refreshMatchDetailScore();
+
+      const summary = await fetchDisplayMatchSummary(match);
+      if (selectedMatchKey !== matchKey(match.home, match.away, match.utc)) {
+        return;
+      }
+
+      currentDetailSummary = summary;
+      renderDetailTabPanel(summary, match, detailTab);
     }
 
     function mergeRawSchedule() {
@@ -2921,12 +3037,17 @@
     }
 
     function getLiveDisplayScores(match) {
-      const home = match.homeScore ?? match.rawHomeScore;
-      const away = match.awayScore ?? match.rawAwayScore;
-      return {
-        home: home ?? 0,
-        away: away ?? 0
-      };
+      if (match.homeScore !== null && match.awayScore !== null) {
+        return { home: match.homeScore, away: match.awayScore };
+      }
+
+      return { home: 0, away: 0 };
+    }
+
+    function shouldShowInGroupHistory(match) {
+      const live = match.inProgress || match.rawInProgress;
+      const finished = (match.rawCompleted ?? match.completed) && !live;
+      return finished || live;
     }
 
     function updateLiveBoard(match) {
@@ -2955,7 +3076,7 @@
       const liveTeams = new Set();
 
       mergeLiveSchedule().forEach((match) => {
-        if ((match.inProgress || match.rawInProgress) && getStandingsScores(match)) {
+        if (match.inProgress || match.rawInProgress) {
           liveTeams.add(match.home);
           liveTeams.add(match.away);
         }
@@ -3806,7 +3927,7 @@
         return;
       }
 
-      const summary = await fetchMatchSummary(match.espnId);
+      const summary = await fetchDisplayMatchSummary(match);
       if (liveTimelineListEl) {
         liveTimelineListEl.innerHTML = renderMatchEventFeed(summary?.events || [], match, { showHead: false });
       }
@@ -4025,15 +4146,19 @@
     }
 
     function renderGroupHistory(groupName) {
-      const matches = getGroupMatches(groupName).filter((match) => match.rawCompleted ?? match.completed);
+      const matches = getGroupMatches(groupName).filter(shouldShowInGroupHistory);
       const rows = matches.length
         ? matches.map((match) => {
             const key = matchKey(match.home, match.away, match.utc);
+            const live = match.inProgress || match.rawInProgress;
+            const timeLabel = live
+              ? `${liveMinuteText(match)} · LIVE`
+              : `Giờ VN ${formatVietnamTime(match.utc)}`;
             return `
-              <button class="history-match-row" type="button" data-match-key="${key}">
+              <button class="history-match-row${live ? " is-live" : ""}" type="button" data-match-key="${key}">
                 <div class="history-match-score">${renderMatchScoreRow(match.home, match.away, scoreText(match))}</div>
                 <div class="history-match-meta">
-                  <span>Giờ VN ${formatVietnamTime(match.utc)}</span>
+                  <span>${timeLabel}</span>
                   <span>${match.venue}</span>
                 </div>
               </button>
@@ -4063,11 +4188,16 @@
         return;
       }
 
+      const live = match.inProgress || match.rawInProgress;
+      const metaText = live
+        ? `${liveMinuteText(match)} · LIVE · ${match.venue}`
+        : `Giờ VN ${formatVietnamTime(match.utc)} · ${match.venue}`;
+
       matchDetailViewEl.innerHTML = `
         <button class="history-back" type="button" data-action="back-history">← Quay lại lịch sử</button>
         <div class="history-head">${formatGroupName(match.group)}</div>
         <div class="match-detail-score">${renderMatchScoreRow(match.home, match.away, scoreText(match))}</div>
-        <div class="match-detail-meta">Giờ VN ${formatVietnamTime(match.utc)} · ${match.venue}</div>
+        <div class="match-detail-meta">${metaText}</div>
         <div class="detail-tabs" role="tablist" aria-label="Chi tiết trận đấu">
           <button class="detail-tab${tab === "stats" ? " active" : ""}" type="button" data-detail-tab="stats" role="tab" aria-selected="${tab === "stats"}">Thống kê</button>
           <button class="detail-tab${tab === "lineup" ? " active" : ""}" type="button" data-detail-tab="lineup" role="tab" aria-selected="${tab === "lineup"}">Đội hình</button>
@@ -4077,7 +4207,7 @@
         </div>
       `;
 
-      const summary = await fetchMatchSummary(match.espnId);
+      const summary = await fetchDisplayMatchSummary(match);
       if (selectedMatchKey !== matchKey) {
         return;
       }
@@ -4089,10 +4219,6 @@
     function getStandingsScores(match) {
       if (match.homeScore !== null && match.awayScore !== null) {
         return { home: match.homeScore, away: match.awayScore };
-      }
-
-      if (match.rawInProgress && match.rawHomeScore !== null && match.rawAwayScore !== null) {
-        return { home: match.rawHomeScore, away: match.rawAwayScore };
       }
 
       return null;
