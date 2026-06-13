@@ -54,6 +54,8 @@
 
     .bg-poster {
       --bg-image: url("assets/bg-poster.jpg");
+      --bg-fit: cover;
+      --bg-position: center center;
       position: absolute;
       inset: 0;
       z-index: 0;
@@ -78,8 +80,8 @@
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      object-position: center center;
+      object-fit: var(--bg-fit);
+      object-position: var(--bg-position);
       image-rendering: auto;
       -webkit-backface-visibility: hidden;
       backface-visibility: hidden;
@@ -1999,221 +2001,6 @@
       text-shadow: var(--read-shadow);
     }
 
-    .bg-picker {
-      position: fixed;
-      top: 1.25rem;
-      left: 1.25rem;
-      z-index: 20;
-    }
-
-    .bg-picker-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      min-height: 2.35rem;
-      padding: 0.45rem 0.85rem;
-      border: 0.1rem solid rgba(255, 255, 255, 0.2);
-      border-radius: 0.4rem;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-        rgba(4, 18, 24, 0.72);
-      color: #ffffff;
-      font: inherit;
-      font-size: 0.74rem;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      cursor: pointer;
-      box-shadow: 0 0.35rem 1.2rem rgba(0, 0, 0, 0.28);
-      backdrop-filter: blur(0.55rem);
-      text-shadow: var(--read-shadow);
-    }
-
-    .bg-picker-toggle svg {
-      width: 1rem;
-      height: 1rem;
-      flex-shrink: 0;
-      opacity: 0.92;
-    }
-
-    .bg-picker-toggle:hover,
-    .bg-picker-toggle:focus-visible,
-    .bg-picker-toggle[aria-expanded="true"] {
-      border-color: rgba(255, 209, 102, 0.55);
-      color: var(--gold);
-      outline: 0;
-    }
-
-    .bg-picker-panel {
-      position: absolute;
-      top: calc(100% + 0.55rem);
-      left: 0;
-      width: min(22rem, calc(100vw - 2.5rem));
-      padding: 0.85rem;
-      border: 0.1rem solid rgba(255, 255, 255, 0.16);
-      border-radius: 0.45rem;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03)),
-        rgba(4, 18, 24, 0.88);
-      box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.34);
-      backdrop-filter: blur(0.75rem);
-    }
-
-    .bg-picker-panel.hidden {
-      display: none;
-    }
-
-    .bg-picker-title {
-      margin: 0 0 0.65rem;
-      font-size: 0.78rem;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--gold);
-      text-shadow: var(--read-shadow);
-    }
-
-    .bg-picker-section {
-      display: grid;
-      gap: 0.45rem;
-    }
-
-    .bg-picker-section + .bg-picker-section {
-      margin-top: 0.75rem;
-      padding-top: 0.75rem;
-      border-top: 0.1rem solid rgba(255, 255, 255, 0.1);
-    }
-
-    .bg-picker-label {
-      font-size: 0.68rem;
-      font-weight: 800;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .bg-picker-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 0.4rem;
-    }
-
-    .bg-picker-input {
-      width: 100%;
-      min-width: 0;
-      height: 2.1rem;
-      padding: 0 0.65rem;
-      border: 0.1rem solid rgba(255, 255, 255, 0.14);
-      border-radius: 0.35rem;
-      background: rgba(0, 0, 0, 0.28);
-      color: #ffffff;
-      font: inherit;
-      font-size: 0.74rem;
-      font-weight: 600;
-    }
-
-    .bg-picker-input::placeholder {
-      color: rgba(220, 228, 240, 0.45);
-    }
-
-    .bg-picker-input:focus-visible {
-      outline: 0;
-      border-color: rgba(255, 209, 102, 0.55);
-    }
-
-    .bg-picker-action {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 2.1rem;
-      padding: 0 0.75rem;
-      border: 0.1rem solid rgba(255, 255, 255, 0.16);
-      border-radius: 0.35rem;
-      background: rgba(255, 255, 255, 0.08);
-      color: #ffffff;
-      font: inherit;
-      font-size: 0.72rem;
-      font-weight: 800;
-      cursor: pointer;
-      text-shadow: var(--read-shadow);
-      white-space: nowrap;
-    }
-
-    .bg-picker-action:hover,
-    .bg-picker-action:focus-visible {
-      border-color: rgba(255, 209, 102, 0.5);
-      color: var(--gold);
-      outline: 0;
-    }
-
-    .bg-picker-action.primary {
-      border-color: rgba(255, 209, 102, 0.42);
-      background: rgba(255, 209, 102, 0.16);
-      color: var(--gold);
-    }
-
-    .bg-picker-file {
-      display: grid;
-      gap: 0.45rem;
-    }
-
-    .bg-picker-file-input {
-      position: absolute;
-      width: 0.1rem;
-      height: 0.1rem;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .bg-picker-note {
-      margin: 0.65rem 0 0;
-      font-size: 0.64rem;
-      line-height: 1.45;
-      color: var(--dim);
-    }
-
-    .bg-picker-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.4rem;
-      margin-top: 0.75rem;
-    }
-
-    @media (min-width: 1920px) {
-      .bg-picker {
-        top: 1.5rem;
-        left: 1.5rem;
-      }
-
-      .bg-picker-toggle {
-        min-height: 2.5rem;
-        padding: 0.5rem 0.95rem;
-        font-size: 0.78rem;
-      }
-
-      .bg-picker-panel {
-        width: 24rem;
-      }
-    }
-
-    @media (min-width: 2560px) {
-      .bg-picker {
-        top: 1.75rem;
-        left: 1.75rem;
-      }
-
-      .bg-picker-toggle {
-        min-height: 2.65rem;
-        padding: 0.55rem 1.05rem;
-        font-size: 0.82rem;
-      }
-
-      .bg-picker-panel {
-        width: 26rem;
-        padding: 1rem;
-      }
-    }
-
     .empty-state {
       color: var(--muted);
       font-size: 0.85rem;
@@ -2477,38 +2264,6 @@
     <div class="ribbon one"></div>
     <div class="ribbon two"></div>
     <div class="ribbon three"></div>
-
-    <div class="bg-picker" id="bgPicker">
-      <button class="bg-picker-toggle" type="button" id="bgPickerToggle" aria-expanded="false" aria-controls="bgPickerPanel" title="Đổi hình nền">
-        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-          <circle cx="8.5" cy="10.5" r="1.6"></circle>
-          <path d="M21 16l-5.2-5.2a1.2 1.2 0 0 0-1.7 0L8 17"></path>
-        </svg>
-        <span>Hình nền</span>
-      </button>
-      <div class="bg-picker-panel hidden" id="bgPickerPanel" role="dialog" aria-label="Cài đặt hình nền">
-        <h3 class="bg-picker-title">Đổi hình nền</h3>
-        <div class="bg-picker-section">
-          <div class="bg-picker-label">Từ máy tính</div>
-          <div class="bg-picker-file">
-            <label class="bg-picker-action primary" for="bgPickerFile">Chọn ảnh từ máy</label>
-            <input class="bg-picker-file-input" id="bgPickerFile" type="file" accept="image/*">
-          </div>
-        </div>
-        <div class="bg-picker-section">
-          <div class="bg-picker-label">Từ liên kết</div>
-          <div class="bg-picker-row">
-            <input class="bg-picker-input" id="bgPickerUrl" type="url" inputmode="url" placeholder="Nhập địa chỉ ảnh..." autocomplete="off">
-            <button class="bg-picker-action primary" type="button" id="bgPickerApplyUrl">Áp dụng</button>
-          </div>
-        </div>
-        <p class="bg-picker-note">Ảnh tự phủ kín màn hình Full HD và 2K. Hiệu ứng động giữ nguyên.</p>
-        <div class="bg-picker-footer">
-          <button class="bg-picker-action" type="button" id="bgPickerReset">Mặc định</button>
-        </div>
-      </div>
-    </div>
 
     <section class="dashboard">
       <aside class="panel standings-panel" aria-label="Bảng xếp hạng vòng bảng">
@@ -5663,132 +5418,67 @@
 
     setInterval(updateCountdown, 1000);
 
-    (function initBackgroundPicker() {
-      const DEFAULT_BG = "assets/bg-poster.jpg";
-      const STORAGE_KEY = "wc26-custom-bg";
+    (function initWallpaperBackground() {
+      function isLocalWallpaperContext() {
+        const host = window.location.hostname;
+        return window.location.protocol === "file:"
+          || host === "localhost"
+          || host === "127.0.0.1"
+          || typeof window.lively !== "undefined";
+      }
+
+      if (!isLocalWallpaperContext()) {
+        return;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const bgParam = params.get("bg");
+      if (!bgParam) {
+        return;
+      }
+
       const bgPoster = document.querySelector(".bg-poster");
       const bgImg = bgPoster.querySelector("img");
-      const pickerRoot = document.getElementById("bgPicker");
-      const toggleButton = document.getElementById("bgPickerToggle");
-      const panel = document.getElementById("bgPickerPanel");
-      const fileInput = document.getElementById("bgPickerFile");
-      const urlInput = document.getElementById("bgPickerUrl");
-      const applyUrlButton = document.getElementById("bgPickerApplyUrl");
-      const resetButton = document.getElementById("bgPickerReset");
+      const escaped = bgParam.replace(/"/g, '\\"');
 
-      function toCssUrl(src) {
-        if (src.startsWith("url(")) {
-          return src;
-        }
-
-        const escaped = src.replace(/"/g, '\\"');
-        return `url("${escaped}")`;
+      function applyBackgroundPosition(value) {
+        bgPoster.style.setProperty("--bg-position", value || "center center");
       }
 
-      function applyBackground(src) {
-        bgPoster.style.setProperty("--bg-image", toCssUrl(src));
-        bgImg.src = src;
+      function applyBackgroundFit(mode) {
+        bgPoster.style.setProperty("--bg-fit", mode);
       }
 
-      function persistBackground(src) {
-        try {
-          localStorage.setItem(STORAGE_KEY, src);
-        } catch (error) {
-          console.warn("Không thể lưu hình nền vào bộ nhớ cục bộ.", error);
-        }
-      }
-
-      function clearSavedBackground() {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-
-      function restoreBackground() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (!saved) {
+      function updateBackgroundFit() {
+        const explicitFit = params.get("bgFit");
+        if (explicitFit === "cover" || explicitFit === "contain") {
+          applyBackgroundFit(explicitFit);
+          applyBackgroundPosition(params.get("bgPos"));
           return;
         }
 
-        applyBackground(saved);
-        if (!saved.startsWith("data:")) {
-          urlInput.value = saved;
-        }
-      }
-
-      function setPanelOpen(open) {
-        panel.classList.toggle("hidden", !open);
-        toggleButton.setAttribute("aria-expanded", open ? "true" : "false");
-      }
-
-      function applyFromUrl() {
-        const value = urlInput.value.trim();
-        if (!value) {
-          urlInput.focus();
+        if (!bgImg.naturalWidth || !bgImg.naturalHeight) {
           return;
         }
 
-        applyBackground(value);
-        persistBackground(value);
-        setPanelOpen(false);
+        const viewRatio = window.innerWidth / window.innerHeight;
+        const imageRatio = bgImg.naturalWidth / bgImg.naturalHeight;
+        const ratioGap = Math.abs(imageRatio - viewRatio) / Math.max(imageRatio, viewRatio);
+        const shouldContain = ratioGap > 0.12;
+
+        applyBackgroundFit(shouldContain ? "contain" : "cover");
+        applyBackgroundPosition(params.get("bgPos") || "center center");
       }
 
-      function applyFromFile(file) {
-        if (!file || !file.type.startsWith("image/")) {
-          return;
-        }
+      bgPoster.classList.add("is-custom-bg");
+      bgPoster.style.setProperty("--bg-image", `url("${escaped}")`);
+      bgImg.addEventListener("load", updateBackgroundFit, { once: false });
+      window.addEventListener("resize", updateBackgroundFit, { passive: true });
+      bgImg.src = bgParam;
 
-        const reader = new FileReader();
-        reader.onload = () => {
-          applyBackground(reader.result);
-          persistBackground(reader.result);
-          setPanelOpen(false);
-        };
-        reader.readAsDataURL(file);
+      if (bgImg.complete) {
+        updateBackgroundFit();
       }
-
-      toggleButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        setPanelOpen(panel.classList.contains("hidden"));
-      });
-
-      applyUrlButton.addEventListener("click", applyFromUrl);
-
-      urlInput.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          applyFromUrl();
-        }
-      });
-
-      fileInput.addEventListener("change", () => {
-        applyFromFile(fileInput.files[0]);
-        fileInput.value = "";
-      });
-
-      resetButton.addEventListener("click", () => {
-        applyBackground(DEFAULT_BG);
-        clearSavedBackground();
-        urlInput.value = "";
-        fileInput.value = "";
-        setPanelOpen(false);
-      });
-
-      document.addEventListener("click", (event) => {
-        if (panel.classList.contains("hidden")) {
-          return;
-        }
-
-        if (!pickerRoot.contains(event.target)) {
-          setPanelOpen(false);
-        }
-      });
-
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          setPanelOpen(false);
-        }
-      });
-
-      restoreBackground();
     })();
 
     const canvas = document.getElementById("motion");
